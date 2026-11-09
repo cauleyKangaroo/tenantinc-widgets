@@ -25,10 +25,10 @@ function toggle(list: string[], value: string): string[] {
 
 /** Pill row — a selected pill inverts and grows a clear (x) button, per the frame. */
 function PillGroup({
-  options, selected, onToggle,
-}: { options: string[]; selected: string[]; onToggle: (v: string) => void }) {
+  label, options, selected, onToggle,
+}: { label: string; options: string[]; selected: string[]; onToggle: (v: string) => void }) {
   return (
-    <div className="ml-fp-pills">
+    <div className="ml-fp-pills" role="group" aria-label={label}>
       {options.map((opt) => {
         const on = selected.includes(opt);
         return (
@@ -58,10 +58,10 @@ function PillGroup({
  * to use; there was no reason for this to be the exception.
  */
 function CheckList({
-  options, selected, onToggle,
-}: { options: string[]; selected: string[]; onToggle: (v: string) => void }) {
+  label, options, selected, onToggle,
+}: { label: string; options: string[]; selected: string[]; onToggle: (v: string) => void }) {
   return (
-    <div className="ml-fp-checks">
+    <div className="ml-fp-checks" role="group" aria-label={label}>
       {options.map((opt) => (
         <Checkbox
           key={opt}
@@ -174,14 +174,14 @@ export function FilterPanel({
           {options.types.length > 0 && (
             <section className="ml-fp-section">
               <p className="ml-fp-section-title">Type:</p>
-              <PillGroup options={options.types} selected={filters.types} onToggle={(v) => set('types', toggle(filters.types, v))} />
+              <PillGroup label="Type" options={options.types} selected={filters.types} onToggle={(v) => set('types', toggle(filters.types, v))} />
             </section>
           )}
 
           {options.sizes.length > 0 && (
             <section className="ml-fp-section">
               <p className="ml-fp-section-title">Size:</p>
-              <PillGroup options={options.sizes} selected={filters.sizes} onToggle={(v) => set('sizes', toggle(filters.sizes, v))} />
+              <PillGroup label="Size" options={options.sizes} selected={filters.sizes} onToggle={(v) => set('sizes', toggle(filters.sizes, v))} />
             </section>
           )}
 
@@ -203,21 +203,21 @@ export function FilterPanel({
           {options.features.length > 0 && (
             <section className="ml-fp-section">
               <p className="ml-fp-section-title">Space Features:</p>
-              <PillGroup options={options.features} selected={filters.features} onToggle={(v) => set('features', toggle(filters.features, v))} />
+              <PillGroup label="Space Features" options={options.features} selected={filters.features} onToggle={(v) => set('features', toggle(filters.features, v))} />
             </section>
           )}
 
           {options.amenities.length > 0 && (
             <section className="ml-fp-section">
               <p className="ml-fp-section-title">Amenities</p>
-              <CheckList options={options.amenities} selected={filters.amenities} onToggle={(v) => set('amenities', toggle(filters.amenities, v))} />
+              <CheckList label="Amenities" options={options.amenities} selected={filters.amenities} onToggle={(v) => set('amenities', toggle(filters.amenities, v))} />
             </section>
           )}
 
           {options.promotions.length > 0 && (
             <section className="ml-fp-section">
               <p className="ml-fp-section-title">Promotions</p>
-              <CheckList options={options.promotions} selected={filters.promotions} onToggle={(v) => set('promotions', toggle(filters.promotions, v))} />
+              <CheckList label="Promotions" options={options.promotions} selected={filters.promotions} onToggle={(v) => set('promotions', toggle(filters.promotions, v))} />
             </section>
           )}
         </div>

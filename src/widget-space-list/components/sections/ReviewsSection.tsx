@@ -58,7 +58,7 @@ const PLATFORM_META: Record<Platform, { label: string; score: number; count: num
 
 function GoogleLogo() {
   return (
-    <svg width="46" height="47" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+    <svg width="46" height="47" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Google">
       <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
       <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
       <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
@@ -74,7 +74,7 @@ function GoogleLogo() {
  * happened to resolve — Duda sites set their own, so the letterform was never
  * predictable. This is the real vector, so it draws identically everywhere.
  *
- * The mark is nested as its own <svg> with the source's 0 0 32 32 viewBox rather
+ * The mark is nested as its own <svg aria-hidden="true" focusable="false"> with the source's 0 0 32 32 viewBox rather
  * than transform-scaled: the browser does the fitting, so there are no hand-
  * computed scale/translate numbers to get subtly wrong.
  */
@@ -83,9 +83,9 @@ const YELP_BURST =
 
 function YelpLogo() {
   return (
-    <svg width="46" height="47" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+    <svg width="46" height="47" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Yelp">
       <circle cx="24" cy="24" r="24" fill={YELP_RED} />
-      <svg x="11" y="10" width="26" height="28" viewBox="0 0 32 32">
+      <svg x="11" y="10" width="26" height="28" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
         <path fill="#ffffff" d={YELP_BURST} />
       </svg>
     </svg>
@@ -100,7 +100,7 @@ function PlatformLogo({ platform }: { platform: Platform }) {
 function UserCircleIcon() {
   // Pika user-circle, traced from the Figma review-card design.
   return (
-    <svg width="42" height="42" viewBox="0 0 42 42" fill="none" stroke="#101318" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <svg width="42" height="42" viewBox="0 0 42 42" fill="none" stroke="#101318" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <path d="M33.2406 33.5068C33.0627 30.437 30.3927 28 27.125 28H14.875C11.6073 28 8.93731 30.437 8.75944 33.5068M8.75944 33.5068C11.9152 36.5957 16.2352 38.5 21 38.5C25.7648 38.5 30.0848 36.5957 33.2406 33.5068C36.486 30.33 38.5 25.9002 38.5 21C38.5 11.335 30.665 3.5 21 3.5C11.335 3.5 3.5 11.335 3.5 21C3.5 25.9002 5.51402 30.33 8.75944 33.5068ZM26.25 17.5C26.25 20.3995 23.8995 22.75 21 22.75C18.1005 22.75 15.75 20.3995 15.75 17.5C15.75 14.6005 18.1005 12.25 21 12.25C23.8995 12.25 26.25 14.6005 26.25 17.5Z" />
     </svg>
   );
@@ -125,16 +125,16 @@ function Stars({
 }: { rating: number; size?: number; color?: string; badged?: boolean }) {
   const filled = Math.round(rating);
   return (
-    <div className={`sl-rv2-stars${badged ? ' sl-rv2-stars--badged' : ''}`}>
+    <div className={`sl-rv2-stars${badged ? ' sl-rv2-stars--badged' : ''}`} role="img" aria-label={`Rated ${filled} out of 5`}>
       {[0, 1, 2, 3, 4].map((i) => {
         const on = i < filled;
         return badged ? (
-          <svg key={i} width={size} height={size} viewBox="0 0 17.15 17" xmlns="http://www.w3.org/2000/svg">
+          <svg key={i} width={size} height={size} viewBox="0 0 17.15 17" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
             <rect width="17.15" height="17" rx="3" fill={on ? color : '#DFE3E8'} />
             <path d={ROUND_STAR} fill="#ffffff" transform="translate(2.57 2.55) scale(0.7)" />
           </svg>
         ) : (
-          <svg key={i} width={size} height={size} viewBox="0 0 17.15 17" fill={on ? color : '#DFE3E8'} xmlns="http://www.w3.org/2000/svg">
+          <svg key={i} width={size} height={size} viewBox="0 0 17.15 17" fill={on ? color : '#DFE3E8'} xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
             <path d={ROUND_STAR} />
           </svg>
         );
@@ -230,6 +230,8 @@ export function ReviewsSection() {
         {(['google', 'yelp'] as Platform[]).map((p) => (
           <button
             key={p}
+            type="button"
+            aria-pressed={platform === p}
             className={`sl-rv2-tab${platform === p ? ' active' : ''}`}
             onClick={() => handlePlatform(p)}
           >
@@ -295,6 +297,7 @@ export function ReviewsSection() {
       {total > 1 && (
         <div className="sl-rv2-pagination">
           <button
+            type="button"
             className="sl-rv2-arrow"
             onClick={carousel.prev}
             disabled={!carousel.canPrev}
@@ -312,6 +315,7 @@ export function ReviewsSection() {
             label="Go to review {n}"
           />
           <button
+            type="button"
             className="sl-rv2-arrow"
             onClick={carousel.next}
             disabled={!carousel.canNext}

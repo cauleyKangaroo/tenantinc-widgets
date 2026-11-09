@@ -455,6 +455,17 @@
   cursor: pointer;
   user-select: none;
 }
+/* A <button> (keyboard + aria-expanded); these undo the browser's button
+   styling so it lays out as the <div> it replaced. The skeleton's header is
+   still a div, which this leaves unaffected. */
+.sl-wrapper button.sl-accordion-header {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+}
 /* The section name is a pill: transparent with black text by default; on hover,
    and whenever the section is open, it becomes white text on a black pill. */
 .sl-wrapper .sl-accordion-title {
@@ -1299,6 +1310,21 @@
   gap: 8px;
 }
 .sl-wrapper .sl-dv-see-fits:hover { text-decoration: underline; }
+
+/* "See what fits" opens a video, so it is a <button> rather than an href="#"
+   link. Reset to look exactly as the link did. */
+.sl-wrapper button.sl-see-fits,
+.sl-wrapper button.sl-lc-see-fits,
+.sl-wrapper button.sl-dv-see-fits {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
 
 /* "See what fits" + its play icon are BLACK in every card layout, and
    !important: they are <a>s, and Duda's theme link colour was beating the

@@ -3457,7 +3457,10 @@ export function RentalFlow2Step({
             true and nothing is withheld. */}
         {!accessGranted && idvPolicyPending ? (
           <div className="rfc-layout">
-            <div className="rf-sx" role="status" aria-live="polite" aria-label="Finishing up your rental">
+            {/* Text, not aria-label: a live region announces its CONTENT, and
+                the shimmers are aria-hidden, so a label alone was never read. */}
+            <div className="rf-sx" role="status">
+              <span className="rf-sr-only">Finishing up your rental</span>
               <Shimmer w="60%" h={30} r={4} />
               <Shimmer w="100%" h={150} r={12} />
               <Shimmer w="40%" h={48} r={8} />
@@ -3617,6 +3620,10 @@ export function RentalFlow2Step({
       )}
       <div className="rf-layout">
         <div className="rf-main">
+          {/* Announces the step change: the Step 1 form unmounts under the
+              shopper with nothing else telling a screen reader it moved on.
+              Always mounted so the text change is what gets read. */}
+          <p className="rf-sr-only" role="status">{step === 2 ? 'Step 2: Secure your space now' : ''}</p>
           {step === 2 && holdExpired && (
             <div className="rf-hold-expired" role="alert">
               <span>Your hold expired — your space wasn’t reserved. Reacquire it to continue.</span>

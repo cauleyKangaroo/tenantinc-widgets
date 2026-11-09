@@ -175,7 +175,7 @@ const STAR_STEP = 16.0573;
 export function Stars({ rating, width = 77 }: { rating: number; width?: number }) {
   const filled = Math.round(rating);
   return (
-    <svg width={width} height={(width * 12.4667) / 77} viewBox="0 0 77 12.4667" fill="none" aria-label={`${rating} out of 5`}>
+    <svg width={width} height={(width * 12.4667) / 77} viewBox="0 0 77 12.4667" fill="none" role="img" aria-label={`${rating} out of 5`}>
       {[0, 1, 2, 3, 4].map((i) => (
         <path key={i} transform={`translate(${i * STAR_STEP} 0)`} d={STAR} fill={i < filled ? '#FFD000' : '#C4CDD5'} />
       ))}

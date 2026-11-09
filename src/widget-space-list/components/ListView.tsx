@@ -8,7 +8,7 @@ const TYPE_LABEL: Partial<Record<SpaceType, string>> = {
 };
 
 const ChevronDown = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
     <polyline points="6 9 12 15 18 9" />
   </svg>
 );
@@ -21,10 +21,10 @@ function TypeAccordion({ spaceType, units, config }: { spaceType: SpaceType; uni
 
   return (
     <div className={`sl-accordion${open ? ' expanded' : ''}`}>
-      <div className="sl-accordion-header" onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="sl-accordion-header" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <span className="sl-accordion-title">{label}</span>
         <span className="sl-chevron"><ChevronDown /></span>
-      </div>
+      </button>
       {open && (
         <div className="sl-accordion-body">
           {sortUnits(units, config.sortBy).map((u) => (

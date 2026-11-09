@@ -50,6 +50,7 @@ export function CarouselDots({
         return (
           <button
             key={i}
+            type="button"
             className={`${dotClass}${i === active ? ` ${activeClass}` : ''}`}
             style={isEdge ? { transform: 'scale(0.6)' } : undefined}
             onClick={() => onPick(i)}

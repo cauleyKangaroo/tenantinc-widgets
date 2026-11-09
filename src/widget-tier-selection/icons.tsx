@@ -16,9 +16,12 @@ const stroke = {
 };
 
 /** Green tick used in the comparison table + amenity lists (mdiCheck style). */
-export function CheckIcon({ size = 24, className }: { size?: number; className?: string }) {
+export function CheckIcon({ size = 24, className, label }: { size?: number; className?: string; label?: string }) {
+  // `label` makes the tick content, for table cells where it is the only
+  // thing saying a tier includes the feature.
+  const a11y = label ? { 'aria-hidden': undefined, role: 'img', 'aria-label': label } : {};
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" {...stroke}>
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" {...stroke} {...a11y}>
       <path d="M20 6.5L9.5 17 4 11.5" />
     </svg>
   );

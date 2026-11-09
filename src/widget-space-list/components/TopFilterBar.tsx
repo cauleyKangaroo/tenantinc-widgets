@@ -23,7 +23,7 @@ function toggle(list: string[], value: string): string[] {
 
 function FilterHorizontalIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <path transform="translate(3.6667 0.8333)" d="M5 12C3.45 12 2.15833 13.0667 1.78333 14.5H0V16.1667H1.78333C2.15833 17.6 3.45 18.6667 5 18.6667C6.55 18.6667 7.84167 17.6 8.21667 16.1667H16.6667V14.5H8.21667C7.84167 13.0667 6.55 12 5 12ZM5 17C4.08333 17 3.33333 16.25 3.33333 15.3333C3.33333 14.4167 4.08333 13.6667 5 13.6667C5.91667 13.6667 6.66667 14.4167 6.66667 15.3333C6.66667 16.25 5.91667 17 5 17ZM14.8833 6.16667C14.5083 4.73333 13.2167 3.66667 11.6667 3.66667C10.1167 3.66667 8.825 4.73333 8.45 6.16667H0V7.83333H8.45C8.825 9.26667 10.1167 10.3333 11.6667 10.3333C13.2167 10.3333 14.5083 9.26667 14.8833 7.83333H16.6667V6.16667H14.8833ZM11.6667 8.66667C10.75 8.66667 10 7.91667 10 7C10 6.08333 10.75 5.33333 11.6667 5.33333C12.5833 5.33333 13.3333 6.08333 13.3333 7C13.3333 7.91667 12.5833 8.66667 11.6667 8.66667Z" fill="currentColor"/>
     </svg>
   );
@@ -35,7 +35,7 @@ function FilterHorizontalIcon() {
    because both buttons it sits on are #101318. */
 export function SearchIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <circle cx="11" cy="11" r="8"/>
       <line x1="21" y1="21" x2="16.65" y2="16.65"/>
     </svg>
@@ -66,9 +66,13 @@ export function TopFilterBar({
           different things, so they get two classes. has-filters fills the button
           black with a white icon. */}
       <button
+        type="button"
         className={`sl-top-bar-icon-btn${panelOpen ? ' active' : ''}${activeCount > 0 ? ' has-filters' : ''}`}
         onClick={onTogglePanel}
-        aria-label="Open filters"
+        /* The label replaces the content, so the badge's count goes in it. */
+        aria-label={activeCount > 0 ? `Open filters, ${activeCount} active` : 'Open filters'}
+        aria-haspopup="dialog"
+        aria-expanded={panelOpen}
         title="Open filters"
       >
         <FilterHorizontalIcon />
@@ -84,6 +88,8 @@ export function TopFilterBar({
           return (
             <button
               key={name}
+              type="button"
+              aria-pressed={active}
               className={`sl-top-bar-pill${active ? ' active' : ''}`}
               onClick={() => onChange({ ...filters, features: toggle(filters.features, name) })}
             >
@@ -97,6 +103,8 @@ export function TopFilterBar({
           className="sl-top-bar-pill sl-top-bar-more"
           type="button"
           onClick={onTogglePanel}
+          aria-label="More filters"
+          aria-haspopup="dialog"
         >
           More
         </button>

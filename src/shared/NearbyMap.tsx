@@ -500,6 +500,10 @@ export function NearbyMap({
             key={p.id}
             type="button"
             title={p.name}
+            // A bare price ("$45") or an empty dot says nothing about WHICH
+            // property; the name leads the accessible name.
+            aria-label={p.name ? [p.name, p.label].filter(Boolean).join(', ') : undefined}
+            aria-expanded={p.id === openId}
             onClick={(e) => { e.stopPropagation(); setOpenId((cur) => (cur === p.id ? null : p.id)); }}
             style={{
               position: 'absolute', left: p.left, top: p.top, transform: 'translate(-50%, -100%)',

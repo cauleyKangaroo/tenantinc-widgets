@@ -443,7 +443,9 @@ export function StorageTypeLocations({
       {header}
       {groupByState(result.facilities).map(([state, list]) => (
         <div className="stl-group" key={state}>
-          <h3 className="stl-state">{state}</h3>
+          {/* Level 2 under the <h1>. Still an <h3> element so whatever the
+              theme's H3 rule sets beyond .stl-state's overrides is unchanged. */}
+          <h3 className="stl-state" aria-level={2}>{state}</h3>
           <ul className="stl-list">
             {list.map((f) => (
               <li className="stl-item" key={f.id}>

@@ -32,14 +32,13 @@ function FaqItem({ faq, isLast }: { faq: Faq; isLast: boolean }) {
 
   return (
     <div className={`sl-faq2-item${isLast ? ' sl-faq2-item--last' : ''}`}>
-      <button className="sl-faq2-row" onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="sl-faq2-row" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <span className="sl-faq2-question">{faq.question}</span>
         <svg
           className={`sl-faq2-chevron${open ? ' open' : ''}`}
           width="24" height="24" viewBox="0 0 24 24"
           fill="none" stroke="currentColor" strokeWidth="2"
-          strokeLinecap="round" strokeLinejoin="round"
-        >
+          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
           {/* Same curve as the outer accordion headers — this is an accordion
               inside an accordion, so a different chevron read as a different
               control. .sl-faq2-chevron.open still flips it 180deg. */}

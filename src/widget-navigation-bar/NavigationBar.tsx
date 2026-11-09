@@ -497,8 +497,7 @@ export function NavigationBar({
      Reservation" is tapped, with the caret already in the field. */
   const [resOpen, setResOpen] = useState(false);
   const resInputRef = useRef<HTMLInputElement>(null);
-  const toggleRes = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const toggleRes = () => {
     // flushSync renders the field NOW, so it can be focused inside the tap
     // itself — iOS only raises the keyboard for a focus made in the gesture.
     flushSync(() => setResOpen((o) => !o));
@@ -951,7 +950,7 @@ export function NavigationBar({
           preference over the frame's 44. The stroke stays a true 2px either
           way — see the note on MessageAiIcon. */}
       {showChat && (
-        <button className="nav-icon-btn" aria-label="AI chat">
+        <button type="button" className="nav-icon-btn" aria-label="AI chat">
           <MessageAiIcon size={40} />
         </button>
       )}
@@ -980,7 +979,7 @@ export function NavigationBar({
     .join(' ');
 
   return (
-    <nav className={barClass}>
+    <nav className={barClass} aria-label="Main">
       {showTopBar && (
         <div className="nav-topbar">
           <div className="nav-topbar-inner">{topItems}</div>
@@ -1012,7 +1011,13 @@ export function NavigationBar({
             <a className="nav-mobile-call" href={telHref} aria-label={`Call ${displayPhone}`}>
               <PhoneCallIcon size={30} />
             </a>
-            <button className="nav-burger" onClick={() => setMenuOpen(true)} aria-label="Open menu">
+            <button
+              type="button"
+              className="nav-burger"
+              onClick={() => setMenuOpen(true)}
+              aria-label="Open menu"
+              aria-expanded={menuOpen}
+            >
               <HamburgerIcon />
             </button>
           </div>
@@ -1053,7 +1058,11 @@ export function NavigationBar({
         className={`nav-mobile-menu${menuOpen ? ' is-open' : ''}`}
         role="dialog"
         aria-modal="true"
+        aria-label="Menu"
         aria-hidden={!menuOpen}
+        // Closed, the drawer is only visibility-hidden off-canvas; inert keeps
+        // its links out of the tab order and the a11y tree for certain.
+        {...(menuOpen ? {} : { inert: '' as unknown as boolean })}
       >
         <div className="nav-mm-overlay" ref={mmOverlayRef} onClick={() => setMenuOpen(false)} />
         <div className="nav-mm-panel">
@@ -1068,6 +1077,7 @@ export function NavigationBar({
               />
             </a>
             <button
+              type="button"
               className="nav-mm-close"
               onClick={() => setMenuOpen(false)}
               aria-label="Close menu"
@@ -1086,13 +1096,12 @@ export function NavigationBar({
             <div className="nav-mm-top">
               {/* Quick actions */}
               <div className="nav-mm-quick">
-                <a className="nav-mm-quick-item" href="#"
-                  onClick={(e) => { e.preventDefault(); setMessageOpen(true); }}>
+                <button type="button" className="nav-mm-quick-item" onClick={() => setMessageOpen(true)}>
                   <span className="nav-mm-circle">
                     <EnvelopeIcon size={22} />
                   </span>
                   <span className="nav-mm-quick-label">Email</span>
-                </a>
+                </button>
                 <a className="nav-mm-quick-item" href={telHref}>
                   <span className="nav-mm-circle">
                     <PhoneIcon size={22} />
@@ -1188,10 +1197,10 @@ export function NavigationBar({
                   </a>
                 </li> */}
                 <li>
-                  <a href="#" onClick={toggleRes} aria-expanded={resOpen}>
+                  <button type="button" className="nav-mm-account-btn" onClick={toggleRes} aria-expanded={resOpen}>
                     <CreditCardIcon size={24} />
                     <span>Find my Reservation</span>
-                  </a>
+                  </button>
                 </li>
                 {resOpen && (
                 <li>

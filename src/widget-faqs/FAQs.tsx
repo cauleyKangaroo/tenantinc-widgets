@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './FAQs.css';
 import { SearchIcon, ChevronDown, ChevronRight } from './icons';
 import { fetchFaqsForProperty, configureApi, type BoundPropertyProps, type ApiCredProps } from './faqApi';
@@ -64,14 +64,22 @@ const SKELETON_ROWS = 5;
 // ---------------------------------------------------------------------------
 
 function FaqItem({ faq, open, onToggle }: { faq: Faq; open: boolean; onToggle: () => void }) {
+  const panelId = useId();
   return (
     <div className="faq-item">
-      <button className="faq-q" onClick={onToggle} aria-expanded={open}>
+      {/* aria-controls only while the panel is mounted — it must name an id in the DOM. */}
+      <button
+        type="button"
+        className="faq-q"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
+      >
         <span className="faq-q-text">{withLineBreaks(faq.question)}</span>
         <ChevronDown className={`faq-chevron${open ? ' open' : ''}`} size={24} />
       </button>
       {open && (
-        <div className="faq-a">
+        <div className="faq-a" id={panelId}>
           {/* Answers can carry authored markup — line breaks especially, which Duda
               stores as a literal `<br>`. RichText parses (and sanitises) it, the
               same treatment the Space List FAQ accordion gives this same data.

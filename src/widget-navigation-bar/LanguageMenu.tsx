@@ -74,7 +74,6 @@ export function LanguageMenu({
       <button
         type="button"
         className={compact ? 'nav-icon-btn nav-lang' : 'nav-top-item nav-lang'}
-        aria-haspopup="menu"
         aria-expanded={open}
         aria-label={compact ? `Language: ${current.title}` : undefined}
         onClick={() => setOpen((v) => !v)}
@@ -85,13 +84,13 @@ export function LanguageMenu({
       </button>
 
       {open && (
-        <div className="nav-lang-menu" role="menu">
+        /* Plain links under a disclosure button, not role="menu" — see AccountMenu. */
+        <div className="nav-lang-menu">
           {OPTIONS.map((o) => {
             const Flag = o.flag;
             return (
               <a
                 key={o.lang}
-                role="menuitem"
                 className={`nav-lang-opt${o.lang === active ? ' nav-lang-opt--on' : ''}`}
                 href={hrefForLang(o.lang)}
                 /* The page it leads to is in that language, so say so — a

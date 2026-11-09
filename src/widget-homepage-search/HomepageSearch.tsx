@@ -129,7 +129,7 @@ function editorSafeHref(path: string, inEditor?: boolean, siteId?: string): stri
 
 function Chevron() {
   return (
-    <svg className="hs-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg className="hs-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
       <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -624,7 +624,9 @@ export function HomepageSearch({
             role="combobox"
             aria-autocomplete="list"
             aria-expanded={showLocationPanel}
-            aria-controls={suggestionsId}
+            // The listbox only exists while the panel is open — never point at a
+            // missing id.
+            aria-controls={showLocationPanel ? suggestionsId : undefined}
             aria-activedescendant={showLocationPanel && activeSuggestion >= 0 && visibleSuggestions[activeSuggestion] ? `${instanceId}-city-${activeSuggestion}` : undefined}
             onFocus={() => { setTypeOpen(false); setSuggestionsOpen(true); }}
             onChange={(e) => { cancelCurrentLocation(); const v = e.target.value; setQ(v.charAt(0).toUpperCase() + v.slice(1)); setSuggestionsOpen(true); setActiveSuggestion(-1); }}
@@ -650,7 +652,7 @@ export function HomepageSearch({
               type="button"
               aria-haspopup="listbox"
               aria-expanded={typeOpen}
-              aria-controls={typeListId}
+              aria-controls={typeOpen ? typeListId : undefined}
               onClick={() => { setSuggestionsOpen(false); setTypeOpen((open) => !open); setActiveType(-1); }}
               onKeyDown={(e) => {
                 if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && typeOptions.length) {
@@ -705,6 +707,16 @@ export function HomepageSearch({
           ref={findRef}
           className="hs-find"
           href={findHref}
+          // With no destination yet (still loading / lookup failed) an <a> has no
+          // href, which drops it from the tab order and announces it as text —
+          // so it stands in as a button until it has somewhere to go.
+          {...(findHref ? {} : {
+            role: 'button',
+            tabIndex: 0,
+            onKeyDown: (e: React.KeyboardEvent<HTMLAnchorElement>) => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); submitSearch(); }
+            },
+          })}
           onClick={(e) => {
             if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
             e.preventDefault();
@@ -762,7 +774,7 @@ export function HomepageSearch({
           {!searching && visibleSuggestions.length === 0 && (
             <div>
               {mapHref ? <a className="hs-map-link" href={mapHref}>
-                <svg width="20" height="19" viewBox="0 0 20 19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width="20" height="19" viewBox="0 0 20 19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
                   <path d="M17.4523 3.28784C17.9422 3.4015 18.3741 3.69648 18.6581 4.11731C19.0002 4.62437 19.0002 5.45779 19.0002 7.12463V13.0223C19.0002 13.7402 19.0002 14.0992 18.8909 14.4161C18.7943 14.6963 18.6365 14.9516 18.4291 15.1634C18.1945 15.4029 17.8734 15.5634 17.2313 15.8845L14.4313 17.2845C13.9066 17.5468 13.6442 17.678 13.369 17.7297C13.1253 17.7754 12.8752 17.7754 12.6314 17.7297C12.3563 17.678 12.0939 17.5468 11.5692 17.2845L8.41665 15.7082C7.90633 15.4531 7.65117 15.3255 7.38398 15.2732C7.13056 15.2237 6.86993 15.2237 6.61651 15.2732C6.34932 15.3255 6.09416 15.4531 5.58384 15.7082C4.09297 16.4537 3.34754 16.8264 2.74098 16.7471C2.17245 16.6727 1.66316 16.358 1.34243 15.8827C1.00024 15.3757 1.00024 14.5422 1.00024 12.8754V6.97773C1.00024 6.25981 1.00024 5.90085 1.10955 5.58394C1.20622 5.30369 1.36397 5.04844 1.57141 4.83665C1.74921 4.65511 1.9767 4.51895 2.35604 4.32385M10.0002 5H10.0102M14.2104 5.44444C14.2104 8.77778 11.0525 11 9.99983 11C8.9472 11 5.78931 8.77778 5.78931 5.44444C5.78931 2.11111 8.42089 1 9.99983 1C11.5788 1 14.2104 2.11111 14.2104 5.44444Z" />
                 </svg>
                 <span>View Map</span>

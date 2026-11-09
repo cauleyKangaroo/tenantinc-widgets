@@ -10,6 +10,7 @@ import {
   MilitaryFields, AltContactFields, VehicleFields,
   extraFieldProblems, EMPTY_EXTRA_FIELDS, type ExtraFieldValues,
 } from './additionalInfo';
+import { listboxKeyDown, listboxTriggerKeyDown, focusListboxTrigger } from './listboxKeys';
 // The mask writes MM/DD/YYYY; the lease payload wants YYYY-MM-DD. Same
 // converter the post-purchase screen uses, so the two cannot drift.
 import { dobToIso, type RentalCtx, type WalletPayment } from './api';
@@ -533,6 +534,15 @@ export function Step2({
      server's, which is what the old note was waiting for.
      `useId` because a page can hold two of these and radios group by name. */
   const cycleName = useId();
+  // ids for the two plan pickers: the trigger is named by its section heading
+  // plus its own value, and points at its list while it is open.
+  const planHeadId = useId();
+  const planBtnId = useId();
+  const planListId = useId();
+  const ksHeadId = useId();
+  const ksBtnId = useId();
+  const ksListId = useId();
+  const ksTipId = useId();
   const [cycle, setCycle] = useState<PaymentCycle>('monthly');
   /* Monthly is preselected, so "a period is selected" is always true; the card
      outlines (like the autopay row when ticked) once the shopper PICKS one. */
@@ -978,7 +988,7 @@ export function Step2({
         <span data-rf2-rest aria-hidden="true" />
         <button type="button" className="rf2-movein rf2-movein--valid" onClick={onEditDate}>
           <span className="rf2-movein-text">
-            <span className="rf2-movein-label">Move-in Date<span className="rf-req">*</span></span>
+            <span className="rf2-movein-label">Move-in Date<span className="rf-req" aria-hidden="true">*</span></span>
             <span className="rf2-movein-value">{formatDate(moveIn)}</span>
           </span>
           <CalendarIcon size={24} />
@@ -989,7 +999,7 @@ export function Step2({
         {/* Protection Plan */}
         <section className="rf2-panel">
           <div className="rf2-rowhead">
-            <span className="rf2-h rf2-h--plan">Select Protection Plan</span>
+            <span className="rf2-h rf2-h--plan" id={planHeadId}>Select Protection Plan</span>
             {/* The card is a CHILD of the hover target, not a sibling, so
                 moving the pointer onto it keeps :hover true — there is no gap
                 to cross and nothing to flicker. It is also positioned OVER the
@@ -1008,7 +1018,10 @@ export function Step2({
                 Learn More
               </button>
               {canHover && (
-                <div className="rf2-learn-pop" role="tooltip">
+                /* No role="tooltip": it holds a heading, a list and the
+                   brochure link, and a tooltip may hold none of those. It
+                   follows the button in reading and tab order instead. */
+                <div className="rf2-learn-pop">
                   <div className="rf-pp-card">
                     <PlanCoverageBody brochureUrl={brochureUrl} />
                   </div>
@@ -1024,9 +1037,13 @@ export function Step2({
               <button
                 type="button"
                 className="rf2-plan"
+                id={planBtnId}
                 aria-haspopup="listbox"
                 aria-expanded={planListOpen}
+                aria-controls={planListOpen ? planListId : undefined}
+                aria-labelledby={`${planHeadId} ${planBtnId}`}
                 onClick={() => setPlanListOpen((o) => !o)}
+                onKeyDown={(e) => listboxTriggerKeyDown(e, planListOpen, setPlanListOpen)}
               >
                 <span className="rf2-plan-body">
                   {chosenPlan ? (
@@ -1054,7 +1071,7 @@ export function Step2({
 
               {/* Open list (Figma 8508-32894) */}
               {planListOpen && (
-                <div className="rf2-plan-menu" role="listbox" aria-label="Protection plans">
+                <div className="rf2-plan-menu" role="listbox" aria-label="Protection plans" id={planListId} onKeyDown={listboxKeyDown}>
                   {plans.map((p, i) => {
                     const best = /best value/i.test(p.name ?? '');
                     return (
@@ -1069,7 +1086,7 @@ export function Step2({
                           role="option"
                           aria-selected={planChoice === p.id}
                           className={`rf2-plan-opt${best ? ' rf2-plan-opt--best' : ''}`}
-                          onClick={() => choosePlan(p.id)}
+                          onClick={(e) => { focusListboxTrigger(e.currentTarget); choosePlan(p.id); }}
                         >
                           <span className="rf2-plan-opt-left">
                             <span className="rf2-plan-opt-cov">
@@ -1090,7 +1107,7 @@ export function Step2({
                     role="option"
                     aria-selected={planChoice === 'own'}
                     className="rf2-plan-opt rf2-plan-opt--own"
-                    onClick={() => choosePlan('own')}
+                    onClick={(e) => { focusListboxTrigger(e.currentTarget); choosePlan('own'); }}
                   >
                     <span className="rf2-plan-own-t">I have my own insurance</span>
                     <span className="rf2-plan-own-d">
@@ -1118,7 +1135,7 @@ export function Step2({
         {keyShares.length > 0 && (
         <section className="rf2-panel">
           <div className="rf2-rowhead">
-            <span className="rf2-h rf2-h--plan">Select Nokē Key-Share Plan</span>
+            <span className="rf2-h rf2-h--plan" id={ksHeadId}>Select Nokē Key-Share Plan</span>
             {/* The dark card from 12285-189509. Hover and focus both reveal
                 it; on a touch screen, where neither happens, the tap does. */}
             <span className="rf2-tip-anchor">
@@ -1126,6 +1143,7 @@ export function Step2({
                 type="button"
                 className="rf2-link rf2-link--btn"
                 aria-expanded={ksTipOpen}
+                aria-describedby={ksTipOpen ? ksTipId : undefined}
                 onMouseEnter={() => { if (canHover) setKsTipOpen(true); }}
                 onMouseLeave={() => { if (canHover) setKsTipOpen(false); }}
                 onFocus={() => setKsTipOpen(true)}
@@ -1135,7 +1153,7 @@ export function Step2({
                 Learn More
               </button>
               {ksTipOpen && (
-                <span className="rf2-tip rf2-tip--wide" role="tooltip">{KEY_SHARE_BLURB}</span>
+                <span className="rf2-tip rf2-tip--wide" role="tooltip" id={ksTipId}>{KEY_SHARE_BLURB}</span>
               )}
             </span>
           </div>
@@ -1144,9 +1162,13 @@ export function Step2({
             <button
               type="button"
               className="rf2-plan"
+              id={ksBtnId}
               aria-haspopup="listbox"
               aria-expanded={ksOpen}
+              aria-controls={ksOpen ? ksListId : undefined}
+              aria-labelledby={`${ksHeadId} ${ksBtnId}`}
               onClick={() => setKsOpen((o) => !o)}
+              onKeyDown={(e) => listboxTriggerKeyDown(e, ksOpen, setKsOpen)}
             >
               <span className="rf2-plan-body rf2-plan-body--ks">
                 <span className="rf2-plan-left">
@@ -1162,7 +1184,7 @@ export function Step2({
             </button>
 
             {ksOpen && (
-              <div className="rf2-plan-menu" role="listbox" aria-label="Key-share plans">
+              <div className="rf2-plan-menu" role="listbox" aria-label="Key-share plans" id={ksListId} onKeyDown={listboxKeyDown}>
                 {keyShares.map((k, i) => (
                   <React.Fragment key={k.id}>
                     {i > 0 && <span className="rf2-plan-sep" aria-hidden="true" />}
@@ -1171,7 +1193,7 @@ export function Step2({
                       role="option"
                       aria-selected={ksChoice === k.id}
                       className="rf2-plan-opt"
-                      onClick={() => { setKsChoice(k.id); setKsOpen(false); }}
+                      onClick={(e) => { focusListboxTrigger(e.currentTarget); setKsChoice(k.id); setKsOpen(false); }}
                     >
                       <span className="rf2-plan-opt-left">
                         <span className="rf2-plan-opt-cov"><b>{k.label}</b> Plan</span>
@@ -1441,7 +1463,7 @@ export function Step2({
           </div>
           )}
           {payAttempted && !formComplete && (
-            <div className="rf2-gp-note rf2-gp-note--error rf2-gp-note--tag">
+            <div className="rf2-gp-note rf2-gp-note--error rf2-gp-note--tag" role="alert">
               <AlertIcon size={24} className="rf2-gp-note-alert-ico" />
               <span>
                 {!verificationAllowsPayment

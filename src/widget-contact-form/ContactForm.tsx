@@ -73,7 +73,9 @@ export function ContactForm({
   return (
     <div className="cf-wrapper">
       <div className="cf-heading-block">
-        <div className="cf-title">{heading}</div>
+        {/* A div for the host theme's sake (an h2 would pick up its heading
+            styles), but announced as the heading it is. */}
+        <div className="cf-title" role="heading" aria-level={2}>{heading}</div>
         {subheading && <p className="cf-subtitle">{subheading}</p>}
       </div>
 

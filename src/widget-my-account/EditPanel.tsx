@@ -131,7 +131,9 @@ function SelectField({
           {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </label>
-      <div className="ma-select__face" aria-hidden="true">
+      {/* inert too: the face holds a real <input>, which aria-hidden alone
+          leaves focusable. */}
+      <div className="ma-select__face" aria-hidden="true" {...{ inert: '' as unknown as boolean }}>
         <FormField
           label={label}
           required={required}

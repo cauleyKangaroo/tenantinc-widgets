@@ -162,19 +162,26 @@ function PromoBarItem({ item }: { item: BarItem }) {
             <InfoIcon size={36} />
           </button>
         </div>
-        <a
-          className="promo-bar-cta"
-          href={item.url || '#'}
-          onClick={(e) => {
-            if (!isFilterCta) return;
-            e.preventDefault();
-            emitShowPromo({ promoId: item.id, promoTitle: item.title });
-            scrollToPromoResults();
-          }}
-        >
-          <ChevronRight size={24} />
-          <span>{item.ctaLabel}</span>
-        </a>
+        {/* A filter CTA navigates nowhere, so it is a button, not an href="#"
+            link — screen readers would otherwise announce a link to the top. */}
+        {isFilterCta ? (
+          <button
+            type="button"
+            className="promo-bar-cta"
+            onClick={() => {
+              emitShowPromo({ promoId: item.id, promoTitle: item.title });
+              scrollToPromoResults();
+            }}
+          >
+            <ChevronRight size={24} />
+            <span>{item.ctaLabel}</span>
+          </button>
+        ) : (
+          <a className="promo-bar-cta" href={item.url}>
+            <ChevronRight size={24} />
+            <span>{item.ctaLabel}</span>
+          </a>
+        )}
       </div>
 
       {/* Portalled to <body>: the bar sets overflow:hidden and Duda's row
@@ -279,7 +286,7 @@ function PromoBars({ items }: { items: BarItem[] }) {
 
         {/* Capped at 6 with the window sliding — a property with 20 promotions
             gives 20 stops, and that many dots would not fit the row. */}
-        <div className="promo-dots" aria-label="Promotion pages">
+        <div className="promo-dots" role="group" aria-label="Promotion pages">
           <CarouselDots
             count={maxOffset + 1}
             active={current}

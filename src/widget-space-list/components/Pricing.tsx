@@ -247,7 +247,7 @@ export function PromoBadge({ text, style }: { text: string; style?: React.CSSPro
 /** Pika play/play-circle (outline) — inherits currentColor from its link. */
 export function PlayCircleIcon({ size = 18 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <path d="M12.0001 21.1501C17.0535 21.1501 21.1501 17.0535 21.1501 12.0001C21.1501 6.94669 17.0535 2.8501 12.0001 2.8501C6.94669 2.8501 2.8501 6.94669 2.8501 12.0001C2.8501 17.0535 6.94669 21.1501 12.0001 21.1501Z" />
       <path d="M9.50012 11.896C9.50012 10.4641 9.50012 9.74818 9.79935 9.34849C10.0601 9.00019 10.4593 8.78227 10.8933 8.75127C11.3913 8.7157 11.9935 9.10284 13.1979 9.87713L13.3597 9.98113C14.4049 10.653 14.9275 10.989 15.108 11.4161C15.2657 11.7894 15.2657 12.2105 15.108 12.5838C14.9275 13.011 14.4049 13.3469 13.3597 14.0188L13.1979 14.1228C11.9935 14.8971 11.3913 15.2842 10.8933 15.2487C10.4593 15.2177 10.0601 14.9997 9.79935 14.6514C9.50012 14.2517 9.50012 13.5358 9.50012 12.104V11.896Z" />
     </svg>
@@ -256,7 +256,7 @@ export function PlayCircleIcon({ size = 18 }: { size?: number }) {
 
 export function CheckIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }} aria-hidden="true" focusable="false">
       <path d="M5.86337 10.5833L3.55004 8.27001C3.42548 8.14517 3.25638 8.07502 3.08004 8.07502C2.90369 8.07502 2.73459 8.14517 2.61004 8.27001C2.35004 8.53001 2.35004 8.95001 2.61004 9.21001L5.39671 11.9967C5.65671 12.2567 6.07671 12.2567 6.33671 11.9967L13.39 4.94334C13.65 4.68334 13.65 4.26334 13.39 4.00334C13.2655 3.8785 13.0964 3.80835 12.92 3.80835C12.7437 3.80835 12.5746 3.8785 12.45 4.00334L5.86337 10.5833Z" fill="#637381"/>
     </svg>
   );
@@ -522,6 +522,11 @@ export function CtaButton({ unit, config, full, colClass, aside }: {
     return `${config.valueTiersPageUrl}?${p.toString()}`;
   })();
 
+  // Every card repeats the same CTA copy, so each names its unit for screen
+  // readers. The visible copy leads, keeping voice control ("click Select") working.
+  const unitName = [unit.dimensions, unit.subtype].filter(Boolean).join(' ');
+  const ctaLabel = (copy: string) => `${copy}, ${unitName}`;
+
   const noteEl = tiersError
     ? <div className="sl-limited-label" role="alert">Pricing is temporarily unavailable — please try again.</div>
     : note ? <div className="sl-limited-label">{note}</div> : null;
@@ -530,18 +535,20 @@ export function CtaButton({ unit, config, full, colClass, aside }: {
     <>
       <div className={colClass}>
       {waitlistCta ? (
-        <button type="button" className={`sl-waitlist-btn${fullClass}`} onClick={() => setWaitlistOpen(true)}>
+        <button type="button" className={`sl-waitlist-btn${fullClass}`} aria-label={ctaLabel('Join waitlist')} onClick={() => setWaitlistOpen(true)}>
           Join waitlist
         </button>
       ) : unavailable || callOnly ? (
-        <button className={`sl-call-btn${fullClass}`}>Call</button>
+        <button type="button" className={`sl-call-btn${fullClass}`} aria-label={ctaLabel('Call')}>Call</button>
       ) : valueTiersHref ? (
-        <a className={`sl-select-btn${fullClass}`} href={valueTiersHref}>
+        <a className={`sl-select-btn${fullClass}`} href={valueTiersHref} aria-label={ctaLabel(config.ctaButtonCopy)}>
           {config.ctaButtonCopy}
         </a>
       ) : config.enableValueTiers ? (
         <button
+          type="button"
           className={`sl-select-btn${fullClass}`}
+          aria-label={ctaLabel(config.ctaButtonCopy)}
           onClick={selectTier}
           disabled={tiersError || checkingTiers}
           aria-busy={checkingTiers}
@@ -557,6 +564,7 @@ export function CtaButton({ unit, config, full, colClass, aside }: {
         <a
           className={`sl-select-btn${fullClass}`}
           href={rentalHref(config.rentalPageUrl)}
+          aria-label={ctaLabel(config.ctaButtonCopy)}
           onClick={() => saveForRental()}
         >
           {config.ctaButtonCopy}

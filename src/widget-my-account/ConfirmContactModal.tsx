@@ -7,7 +7,7 @@
 // Portalled to <body> like the account sheet: the Edit panel sits inside a
 // Duda column whose stacking and overflow would otherwise clip a dialog.
 // ===========================================================================
-import { useEffect } from 'react';
+import { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseIcon, MapPinIcon, PhoneIcon } from '@shared/ui';
 import { EnvelopeIcon, UserSettingsIcon, InfoNoticeCurrentIcon } from './icons';
@@ -21,6 +21,7 @@ export function ConfirmContactModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const titleId = useId();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
     document.addEventListener('keydown', onKey);
@@ -40,9 +41,9 @@ export function ConfirmContactModal({
       className="ma-confirm-backdrop"
       onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
     >
-      <div className="ma-confirm" role="dialog" aria-modal="true" aria-labelledby="ma-confirm-title">
+      <div className="ma-confirm" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="ma-confirm__head">
-          <h3 id="ma-confirm-title" className="ma-confirm__title">
+          <h3 id={titleId} className="ma-confirm__title">
             <InfoNoticeCurrentIcon className="ma-confirm__warn" />
             Confirm
           </h3>

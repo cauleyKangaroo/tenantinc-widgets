@@ -1,10 +1,11 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import { FormField, SelectField, capitalizeFirst, isPossiblePhone } from '@shared/ui';
 import { AddressAutocomplete } from '@shared/AddressAutocomplete';
 import {
   COUNTRY_OPTIONS, placesCountryFor, postalCodeOk, postalLabel, regionLabel,
 } from '@shared/addressCountry';
 import { ChevronBig } from './planIcons';
+import { listboxKeyDown, listboxTriggerKeyDown, focusListboxTrigger } from './listboxKeys';
 
 // ===========================================================================
 // The Additional Information field groups — the three expanded states.
@@ -202,6 +203,8 @@ export function Select({
      an outside click or Escape. */
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  const errId = useId();
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e: MouseEvent) => {
@@ -223,11 +226,19 @@ export function Select({
         className="rf-select-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={value ? `${label}: ${value}` : `Select ${label}`}
-        aria-required={required || undefined}
+        aria-controls={open ? listId : undefined}
+        // aria-required is not allowed on a button, so "required" goes in the
+        // name; the error (drawn inside the hidden face) is the description.
+        aria-label={`${value ? `${label}: ${value}` : `Select ${label}`}${required ? ', required' : ''}`}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errId : undefined}
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => listboxTriggerKeyDown(e, open, setOpen)}
       />
-      <div className="rf-select-face" aria-hidden="true">
+      {error && <span id={errId} className="rf-sr-only" role="alert">{error}</span>}
+      {/* inert as well as aria-hidden: the face holds a real <input>, which
+          would otherwise be a focusable element hidden from assistive tech. */}
+      <div className="rf-select-face" aria-hidden="true" {...{ inert: '' as unknown as boolean }}>
         <FormField
           label={label} required={required} value={value} onChange={() => {}} error={error}
           className={state === 'success' ? 'rf-valid' : undefined}
@@ -235,7 +246,7 @@ export function Select({
         <ChevronBig size={24} className={`rf-select-chev${open ? ' rf-select-chev--up' : ''}`} />
       </div>
       {open && (
-        <div className="rf2-plan-menu rf-select-menu" role="listbox" aria-label={label}>
+        <div className="rf2-plan-menu rf-select-menu" role="listbox" aria-label={label} id={listId} onKeyDown={listboxKeyDown}>
           {options.map((o, i) => (
             <Fragment key={o}>
               {i > 0 && <span className="rf2-plan-sep" aria-hidden="true" />}
@@ -244,7 +255,7 @@ export function Select({
                 role="option"
                 aria-selected={value === o}
                 className={`rf2-plan-opt${value === o ? ' rf-select-opt--on' : ''}`}
-                onClick={() => { onChange(o); setOpen(false); }}
+                onClick={(e) => { focusListboxTrigger(e.currentTarget); onChange(o); setOpen(false); }}
               >
                 <span className="rf2-plan-opt-cov"><b>{o}</b></span>
               </button>

@@ -11,10 +11,11 @@
 // for the control again.
 // ===========================================================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseCircleIcon } from '@shared/ui';
 import { RfCheckbox } from './RfCheckbox';
+import { useDialogFocus } from './useDialogFocus';
 
 /** Zoom limits for the document viewport. 1 = as rendered on the page. */
 const ZOOM_MIN = 0.8;
@@ -34,6 +35,8 @@ export function LeaseModal({
   children: React.ReactNode;
 }) {
   const [zoom, setZoom] = useState(1);
+  const titleId = useId();
+  const closeRef = useDialogFocus<HTMLButtonElement>(open);
 
   useEffect(() => {
     if (!open) return;
@@ -61,14 +64,14 @@ export function LeaseModal({
         className="rf2-lease"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="rf2-lease-title"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="rf2-lease-head">
-          <p className="rf2-lease-title" id="rf2-lease-title">
-            Rental Agreement <span className="rf-req">*</span>
+          <p className="rf2-lease-title" id={titleId}>
+            Rental Agreement <span className="rf-req" aria-hidden="true">*</span>
           </p>
-          <button type="button" className="rf2-lease-close" onClick={onClose} aria-label="Close">
+          <button type="button" className="rf2-lease-close" onClick={onClose} aria-label="Close" ref={closeRef}>
             {/* Filled disc: .rf2-lease is #f4f6f8. */}
             <CloseCircleIcon size={32} />
           </button>

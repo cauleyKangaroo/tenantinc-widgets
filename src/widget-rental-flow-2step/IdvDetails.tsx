@@ -112,7 +112,7 @@ export function MailingAddressReadout({ value, onEdit }: { value: MailingValue; 
   const place = [v(value.city), [v(value.state), v(value.zip)].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   return (
     <section className="rf-sx-extra rf-idd">
-      <h3 className="rf-sx-extra-title">Mailing Address</h3>
+      <h3 aria-level={2} className="rf-sx-extra-title">Mailing Address</h3>
       <div className="rf-sx-readout">
         <p className="rf-sx-readout-val">
           {street || place ? <>{street}{street && place ? ',' : ''}{street && <br />}{place}</> : 'Not returned by the ID scan'}
@@ -140,7 +140,7 @@ export function MailingAddressFields({ value, onChange, errors = {}, required = 
     || Object.values(errors).some(Boolean);
   return (
     <section className="rf-sx-extra rf-idd">
-      <h3 className="rf-sx-extra-title">Mailing Address{required && <span className="rf-idd-req" aria-hidden="true"> *</span>}</h3>
+      <h3 aria-level={2} className="rf-sx-extra-title">Mailing Address{required && <span className="rf-idd-req" aria-hidden="true"> *</span>}</h3>
       <div className="rf-idd-fields">
         {showCountry && (
           <SelectField
@@ -187,7 +187,7 @@ export function LicenceReadout({ value, onEdit, title = 'Driver’s License' }: 
   const second = [value.exp ? expiryLabel(value.exp) : '', v(value.state), v(value.country)].filter(Boolean).join(', ');
   return (
     <section className="rf-sx-extra rf-idd">
-      <h3 className="rf-sx-extra-title">{title}</h3>
+      <h3 aria-level={2} className="rf-sx-extra-title">{title}</h3>
       <div className="rf-sx-readout">
         <p className="rf-sx-readout-val">
           {v(value.number) || 'Number not returned'}<br />
@@ -212,7 +212,7 @@ export function LicenceFields({ value, onChange, title = 'Driver’s License', r
   return (
     <section className="rf-sx-extra rf-idd">
       <div className="rf-sx-extra-head">
-        <h3 className="rf-sx-extra-title">{title}{required && <span className="rf-idd-req" aria-hidden="true"> *</span>}</h3>
+        <h3 aria-level={2} className="rf-sx-extra-title">{title}{required && <span className="rf-idd-req" aria-hidden="true"> *</span>}</h3>
         {header}
       </div>
       <div className="rf-idd-fields">

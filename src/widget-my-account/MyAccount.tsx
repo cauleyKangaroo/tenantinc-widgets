@@ -825,7 +825,7 @@ export function MyAccount({
             type="button"
             className="ma-submenu-btn"
             aria-label="Account menu"
-            aria-haspopup="menu"
+            aria-haspopup="dialog"
             aria-expanded={sheetOpen}
             onClick={() => setSheetOpen(true)}
           >

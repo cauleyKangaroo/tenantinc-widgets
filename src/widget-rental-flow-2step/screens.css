@@ -123,6 +123,7 @@
 
 /* ── Processing lightbox (8509-35122) ────────────────────────────────────── */
 
+.rf-proc:focus { outline: none; } /* focused programmatically on open */
 .rf-proc {
   display: flex;
   flex-direction: column;

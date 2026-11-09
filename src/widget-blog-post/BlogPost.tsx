@@ -131,7 +131,9 @@ function FeaturedCard({ post, profiles, shareOpen, onToggleShare }: FeaturedCard
         {byline && <p className="bpp-card-byline">{byline}</p>}
         {post.excerpt && <p className="bpp-card-excerpt">{post.excerpt}</p>}
         <div className="bpp-card-footer">
-          <a className="bpp-readmore" href={linked ? post.href : '#'} tabIndex={-1}>Read more</a>
+          {/* A mouse-only duplicate of the title link: out of the tab order and
+              the accessibility tree, and no dead href="#" when unlinked. */}
+          <a className="bpp-readmore" href={linked ? post.href : undefined} tabIndex={-1} aria-hidden="true">Read more</a>
           <button className="bpp-share" type="button" onClick={onToggleShare} aria-expanded={shareOpen}>
             <ShareIcon size={24} />
             Share
@@ -141,7 +143,7 @@ function FeaturedCard({ post, profiles, shareOpen, onToggleShare }: FeaturedCard
 
       {/* Figma 9355:20125 — the popover hangs over the card's lower edge. */}
       {shareOpen && (
-        <div className="bpp-share-pop" role="menu">
+        <div className="bpp-share-pop" role="group" aria-label="Share">
           {/* The card shares ITS OWN post, not the article being read. */}
           <SocialLinks url={absolutePostUrl(post.href)} title={post.title} profiles={profiles} size={26} />
         </div>
@@ -166,12 +168,12 @@ function PostSkeleton({ showBreadcrumb, homeLabel, listingLabel }: {
   listingLabel: string;
 }) {
   return (
-    <div className="bpp-wrapper" aria-hidden="true">
+    <div className="bpp-wrapper">
       {/* The two leading crumbs are props, so they're shown for real; only the
           trailing one (the post title) waits on the row. Plain text, not links:
-          the whole skeleton is aria-hidden and shouldn't take focus. */}
+          every block of the skeleton is aria-hidden and shouldn't take focus. */}
       {showBreadcrumb && (
-        <div className="bpp-crumbs bpp-crumbs--skel">
+        <div className="bpp-crumbs bpp-crumbs--skel" aria-hidden="true">
           <span>{homeLabel}</span>
           <span className="bpp-skel-sep">/</span>
           <span>{listingLabel}</span>
@@ -179,7 +181,7 @@ function PostSkeleton({ showBreadcrumb, homeLabel, listingLabel }: {
           <span className="bpp-skel bpp-skel--crumb" />
         </div>
       )}
-      <div className="bpp-head">
+      <div className="bpp-head" aria-hidden="true">
         <div className="bpp-skel-title">
           <span className="bpp-skel bpp-skel--title" />
           <span className="bpp-skel bpp-skel--title" />
@@ -189,8 +191,8 @@ function PostSkeleton({ showBreadcrumb, homeLabel, listingLabel }: {
         </div>
         <span className="bpp-skel bpp-skel--byline" />
       </div>
-      <span className="bpp-skel bpp-skel--hero" />
-      <div className="bpp-share-row">
+      <span className="bpp-skel bpp-skel--hero" aria-hidden="true" />
+      <div className="bpp-share-row" aria-hidden="true">
         <span className="bpp-share-label">
           <ShareIcon size={32} />
           Share
@@ -199,11 +201,12 @@ function PostSkeleton({ showBreadcrumb, homeLabel, listingLabel }: {
           {SOCIAL_ICONS.map((s) => <span className="bpp-skel bpp-skel--social" key={s.key} />)}
         </div>
       </div>
-      <div className="bpp-body">
+      <div className="bpp-body" aria-hidden="true">
         {[100, 96, 98, 60].map((w, i) => (
           <span className="bpp-skel bpp-skel--text" key={i} style={{ width: `${w}%` }} />
         ))}
       </div>
+      {/* Outside the aria-hidden blocks — inside them it was never announced. */}
       <span className="bpp-sr-only" role="status">Loading article…</span>
     </div>
   );

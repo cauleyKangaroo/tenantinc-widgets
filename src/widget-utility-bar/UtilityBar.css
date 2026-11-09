@@ -161,6 +161,9 @@
   border: none;
   padding: 0;
   margin: 0;
+  /* The tooltip variant nests its message inside the button, which would
+     otherwise take the UA's button font. */
+  font: inherit;
   cursor: pointer;
   color: #fff;
   display: inline-flex;

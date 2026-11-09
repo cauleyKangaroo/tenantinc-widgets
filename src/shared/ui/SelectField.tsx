@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { FormField } from './FormField';
 import './SelectField.css';
 
@@ -67,19 +67,32 @@ export function SelectField({
   const empty = placeholder === false ? null : (placeholder ?? `Select ${label}`);
   // The face shows the option's LABEL; the select itself works in values.
   const shown = options.find((o) => optValue(o) === value);
+  const errorId = useId();
   return (
     <div className={`rf-select${className ? ` ${className}` : ''}`}>
       <label className="rf-select-native">
         <span className="rf-sr-only">{label}</span>
-        <select value={value} onChange={(e) => onChange(e.target.value)} required={required} disabled={disabled}>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          required={required}
+          disabled={disabled}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
+        >
           {empty !== null && <option value="">{empty}</option>}
           {options.map((o) => <option key={optValue(o)} value={optValue(o)}>{optLabel(o)}</option>)}
         </select>
       </label>
+      {/* The visible message lives in the aria-hidden face, so the select gets
+          its own copy to announce and describe itself with. */}
+      {error && <span className="rf-sr-only" id={errorId} role="alert">{error}</span>}
       {/* Presentational twin: shows the floating label + value in the exact form
           styling, while the real <select> above sits transparently over it so the
           native picker (and mobile wheel) still does the work. */}
-      <div className="rf-select-face" aria-hidden="true">
+      {/* inert as well as aria-hidden: the face holds a real <input>, which
+          would otherwise be a focusable element hidden from assistive tech. */}
+      <div className="rf-select-face" aria-hidden="true" {...{ inert: '' as unknown as boolean }}>
         {/* state is NOT forwarded: the kit draws a check tick for 'success',
             which would land on top of the chevron below — that pair is what
             read as "two chevrons" on Billing Country. The valid look here is

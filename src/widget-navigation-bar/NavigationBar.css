@@ -738,6 +738,17 @@
   color: #101318;
 }
 
+/* Email is a <button> (it opens the message modal), reset to match its <a>
+   siblings. */
+button.nav-mm-quick-item {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
 .nav-mm-quick-label {
   overflow-wrap: anywhere;
   text-align: center;
@@ -855,12 +866,26 @@
   gap: 16px;
 }
 
-.nav-mm-account a {
+.nav-mm-account a,
+.nav-mm-account-btn {
   display: flex;
   align-items: center;
   gap: 9px;
   text-decoration: none;
   color: #000;
+}
+
+/* "Find my Reservation" toggles the field below rather than navigating, so
+   it's a <button> — reset to read as the links around it. */
+.nav-mm-account-btn {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .nav-mm-account svg {

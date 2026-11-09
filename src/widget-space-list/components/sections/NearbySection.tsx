@@ -90,7 +90,7 @@ const TagIcon = PromoTagIcon;
 
 function MapPinIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="white" xmlns="http://www.w3.org/2000/svg">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="white" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <path fillRule="evenodd" clipRule="evenodd" d="M8.00027 1.33333C6.89219 1.33333 5.44063 1.71745 4.25329 2.68153C3.04102 3.66586 2.14062 5.2271 2.14062 7.48148C2.14062 9.75511 3.21704 11.6241 4.43297 12.9076C5.0426 13.5511 5.70019 14.0619 6.30394 14.4159C6.88105 14.7544 7.49439 15 8.00027 15C8.50615 15 9.1195 14.7544 9.69661 14.4159C10.3004 14.0619 10.9579 13.5511 11.5676 12.9076C12.7835 11.6241 13.8599 9.75511 13.8599 7.48148C13.8599 5.2271 12.9595 3.66586 11.7473 2.68153C10.5599 1.71745 9.10835 1.33333 8.00027 1.33333ZM5.71973 7.19297C5.71973 5.93338 6.74083 4.91227 8.00043 4.91227C9.26003 4.91227 10.2811 5.93338 10.2811 7.19297C10.2811 8.45257 9.26003 9.47368 8.00043 9.47368C6.74083 9.47368 5.71973 8.45257 5.71973 7.19297Z" />
     </svg>
   );
@@ -98,7 +98,7 @@ function MapPinIcon() {
 
 function PhoneIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="white" xmlns="http://www.w3.org/2000/svg">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="white" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <path d="M5.36398 8.11545C5.09378 8.36585 4.78548 8.60104 4.49713 8.81529C5.17576 9.82491 6.022 10.6889 7.01465 11.3862C7.30745 11.0339 7.63607 10.6446 7.98993 10.3227C9.0284 9.37799 10.4636 9.00172 11.8319 9.3155C12.3635 9.43741 12.9969 9.62899 13.5279 9.98616C14.0806 10.358 14.5376 10.9226 14.635 11.7457C14.6743 12.0778 14.6837 12.4752 14.6237 12.8423C14.4172 14.1053 13.1904 14.7659 12.1134 14.6387C10.1192 14.4033 8.32398 13.7873 6.79149 12.8362C5.23715 11.8716 3.96312 10.5682 3.03069 8.98815C2.1549 7.50408 1.58536 5.78439 1.36118 3.88422C1.23416 2.80763 1.894 1.58024 3.15726 1.37366C3.50113 1.31743 3.89134 1.32868 4.18497 1.35516C4.96125 1.42518 5.51945 1.81474 5.90181 2.32153C6.26737 2.80607 6.47181 3.39414 6.60308 3.90659C6.99348 5.43064 6.5179 7.04617 5.36398 8.11545Z" />
     </svg>
   );
@@ -117,18 +117,18 @@ function Stars({ rating, size = 16, color = '#FFD000' }: { rating: number; size?
   const vb = '0 0 17.15 17';
 
   return (
-    <div className="sl-nb2-stars">
+    <div className="sl-nb2-stars" role="img" aria-label={`Rated ${rating} out of 5`}>
       {Array.from({ length: full }).map((_, i) => (
-        <svg key={`f${i}`} width={size} height={size} viewBox={vb} fill={color}><path d={ROUND_STAR}/></svg>
+        <svg key={`f${i}`} width={size} height={size} viewBox={vb} fill={color} aria-hidden="true" focusable="false"><path d={ROUND_STAR}/></svg>
       ))}
       {half && (
         <span style={{ position: 'relative', display: 'inline-flex', width: size, height: size, flexShrink: 0 }}>
-          <svg width={size} height={size} viewBox={vb} fill="#DFE3E8" style={{ position: 'absolute' }}><path d={ROUND_STAR}/></svg>
-          <svg width={size} height={size} viewBox={vb} fill={color} style={{ position: 'absolute', clipPath: 'inset(0 50% 0 0)' }}><path d={ROUND_STAR}/></svg>
+          <svg width={size} height={size} viewBox={vb} fill="#DFE3E8" style={{ position: 'absolute' }} aria-hidden="true" focusable="false"><path d={ROUND_STAR}/></svg>
+          <svg width={size} height={size} viewBox={vb} fill={color} style={{ position: 'absolute', clipPath: 'inset(0 50% 0 0)' }} aria-hidden="true" focusable="false"><path d={ROUND_STAR}/></svg>
         </span>
       )}
       {Array.from({ length: empty }).map((_, i) => (
-        <svg key={`e${i}`} width={size} height={size} viewBox={vb} fill="#DFE3E8"><path d={ROUND_STAR}/></svg>
+        <svg key={`e${i}`} width={size} height={size} viewBox={vb} fill="#DFE3E8" aria-hidden="true" focusable="false"><path d={ROUND_STAR}/></svg>
       ))}
     </div>
   );
@@ -209,7 +209,7 @@ function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
                       <span className="sl-nb2-starting-label">STARTING AT</span>
                       <span className="sl-nb2-starting-price">${u.startingAt}</span>
                     </div>
-                    <button className="sl-nb2-select">Select</button>
+                    <button type="button" className="sl-nb2-select" aria-label={`Select ${u.dimensions} at ${p.name}`}>Select</button>
                   </div>
                 </div>
               ))}
@@ -500,6 +500,9 @@ export function NearbySection() {
         <button
           type="button"
           title={p.name}
+          // The price alone (or nothing, on a bare dot) doesn't say whose pin it is.
+          aria-label={p.label ? `${p.name}, units from ${p.label}` : p.name}
+          aria-expanded={isOpen}
           onClick={(e) => { e.stopPropagation(); setMapOpenId((cur) => (cur === p.id ? null : p.id)); }}
           style={{
             position: 'absolute', left: p.left, top: p.top, transform: 'translate(-50%, -100%)',
@@ -593,8 +596,8 @@ export function NearbySection() {
 
       {/* View toggle */}
       <div className="sl-nb2-view-tabs" ref={tabsRef}>
-        <button className={`sl-nb2-view-tab${view === 'list' ? ' active' : ''}`} onClick={() => setView('list')}>List View</button>
-        <button className={`sl-nb2-view-tab${view === 'map'  ? ' active' : ''}`} onClick={() => setView('map')}>Map View</button>
+        <button type="button" aria-pressed={view === 'list'} className={`sl-nb2-view-tab${view === 'list' ? ' active' : ''}`} onClick={() => setView('list')}>List View</button>
+        <button type="button" aria-pressed={view === 'map'} className={`sl-nb2-view-tab${view === 'map'  ? ' active' : ''}`} onClick={() => setView('map')}>Map View</button>
       </div>
 
       {/* Content */}
@@ -668,7 +671,7 @@ export function NearbySection() {
           cards jumping when the count arrives. */}
       {view === 'list' && (
         <div className="sl-nb2-pagination" style={loading ? { visibility: 'hidden' } : undefined}>
-          <button className="sl-nb2-arrow" onClick={carousel.prev} disabled={!carousel.canPrev} aria-label="Previous property">
+          <button type="button" className="sl-nb2-arrow" onClick={carousel.prev} disabled={!carousel.canPrev} aria-label="Previous property">
             <CarouselChevron dir="left" />
           </button>
           {/* Capped at 6 with the window sliding — a company with 20 nearby
@@ -680,7 +683,7 @@ export function NearbySection() {
             dotClass="sl-nb2-dot"
             label="Go to nearby property {n}"
           />
-          <button className="sl-nb2-arrow" onClick={carousel.next} disabled={!carousel.canNext} aria-label="Next property">
+          <button type="button" className="sl-nb2-arrow" onClick={carousel.next} disabled={!carousel.canNext} aria-label="Next property">
             <CarouselChevron dir="right" />
           </button>
         </div>

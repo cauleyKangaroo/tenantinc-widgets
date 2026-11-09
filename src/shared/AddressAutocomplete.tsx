@@ -6,7 +6,7 @@
 // ignores the list. Picking a suggestion is a shortcut, never the only route.
 // ===========================================================================
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   fetchPlaceDetails, fetchPlaceSuggestions, newSessionToken,
   type PlaceDetails, type PlacePrediction,
@@ -42,6 +42,22 @@ export function AddressAutocomplete({
   // text the shopper just chose.
   const pickedRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const listId = useId();
+  const menuOpen = open && items.length > 0;
+
+  // Combobox wiring. The input is the caller's (children), so the ARIA goes on
+  // it from here rather than through every call site.
+  useEffect(() => {
+    const input = wrapRef.current?.querySelector('input');
+    if (!input) return;
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-expanded', String(menuOpen));
+    if (menuOpen) input.setAttribute('aria-controls', listId);
+    else input.removeAttribute('aria-controls');
+    if (menuOpen && active >= 0) input.setAttribute('aria-activedescendant', `${listId}-${active}`);
+    else input.removeAttribute('aria-activedescendant');
+  });
 
   useEffect(() => {
     if (disabled) return undefined;
@@ -109,13 +125,17 @@ export function AddressAutocomplete({
   return (
     <div className="hb-addr" ref={wrapRef} onKeyDown={onKeyDown}>
       {children}
-      {open && items.length > 0 && (
-        <ul className="hb-addr-menu" role="listbox" aria-label="Address suggestions">
+      {menuOpen && (
+        <ul className="hb-addr-menu" id={listId} role="listbox" aria-label="Address suggestions">
           {items.map((p, i) => (
-            <li key={p.placeId}>
+            <li key={p.placeId} role="presentation">
               <button
                 type="button"
                 role="option"
+                id={`${listId}-${i}`}
+                // Focus stays in the input (aria-activedescendant); the options
+                // are not tab stops of their own.
+                tabIndex={-1}
                 aria-selected={i === active}
                 className={`hb-addr-opt${i === active ? ' hb-addr-opt--active' : ''}`}
                 // mousedown, not click: the input's blur would close the list

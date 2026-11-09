@@ -29,13 +29,20 @@ const ROUND_FILL: Record<'google' | 'reviews', string> = {
   reviews: '#428627',
 };
 
-/** A 5-star rating in the platform's brand style. `rating` 0–5 fills that many. */
-export function Stars({ platform, rating, width }: { platform: Platform; rating: number; width: number }) {
+/** A 5-star rating in the platform's brand style. `rating` 0–5 fills that many.
+ *  One role="img" with "N out of 5", so the stars are announced once, not five
+ *  times; `decorative` hides it when the number is already given in text. */
+export function Stars({ platform, rating, width, decorative = false }: {
+  platform: Platform; rating: number; width: number; decorative?: boolean;
+}) {
   const filled = Math.round(rating);
+  const a11y = decorative
+    ? { 'aria-hidden': true as const, focusable: 'false' as const }
+    : { role: 'img', 'aria-label': `${rating} out of 5` };
 
   if (platform === 'yelp') {
     return (
-      <svg className="rw-stars" width={width} height={(width * 21) / 110} viewBox="0 0 110 21" fill="none" aria-label={`${rating} out of 5`}>
+      <svg className="rw-stars" width={width} height={(width * 21) / 110} viewBox="0 0 110 21" fill="none" {...a11y}>
         {[0, 1, 2, 3, 4].map((i) => (
           <g key={i} transform={`translate(${i * YELP_STEP} 0)`}>
             <path d={YELP_TILE} fill={i < filled ? '#F33A38' : EMPTY} />
@@ -48,7 +55,7 @@ export function Stars({ platform, rating, width }: { platform: Platform; rating:
 
   const color = ROUND_FILL[platform];
   return (
-    <svg className="rw-stars" width={width} height={(width * 17) / 105} viewBox="0 0 105 17" fill="none" aria-label={`${rating} out of 5`}>
+    <svg className="rw-stars" width={width} height={(width * 17) / 105} viewBox="0 0 105 17" fill="none" {...a11y}>
       {[0, 1, 2, 3, 4].map((i) => (
         <path key={i} transform={`translate(${i * ROUND_STEP} 0)`} d={ROUND_STAR} fill={i < filled ? color : EMPTY} />
       ))}
@@ -60,7 +67,7 @@ export function Stars({ platform, rating, width }: { platform: Platform; rating:
 
 export function GoogleLogo() {
   return (
-    <svg className="rw-platform-logo" viewBox="0 0 48 48" aria-label="Google">
+    <svg className="rw-platform-logo" viewBox="0 0 48 48" role="img" aria-label="Google">
       <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z" />
       <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z" />
       <path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z" />
@@ -71,7 +78,7 @@ export function GoogleLogo() {
 
 export function YelpLogo() {
   return (
-    <svg className="rw-platform-logo" viewBox="0 0 56 56" fill="none" aria-label="Yelp">
+    <svg className="rw-platform-logo" viewBox="0 0 56 56" fill="none" role="img" aria-label="Yelp">
       <path d="M27.9995 55.999C43.4632 55.999 55.999 43.4632 55.999 27.9995C55.999 12.5358 43.4632 0 27.9995 0C12.5358 0 0 12.5358 0 27.9995C0 43.4632 12.5358 55.999 27.9995 55.999Z" fill="#EE2628" />
       <path d="M36.7187 21.5626C37.605 21.4444 38.3842 22.2366 38.887 22.8726C39.6552 23.8441 40.772 25.9094 40.5917 27.1573C40.4655 28.0306 39.6482 28.4443 38.888 28.6817C36.6556 29.3807 34.1467 29.6972 31.8601 30.2992C31.5406 30.3833 31.2021 30.3843 30.8906 30.2751C30.0243 29.9707 29.5595 28.9971 30.0022 28.0457C30.4299 27.1272 32.2617 25.5037 33.0429 24.7025C33.8512 23.8732 35.5959 21.7118 36.7187 21.5626Z" fill="#FEFDFD" />
       <path d="M16.0502 32.6602C15.264 32.2345 15.0987 31.1358 15.0657 30.3255C15.0156 29.0876 15.3261 26.761 16.2055 25.8576C16.8204 25.2256 17.7258 25.3708 18.48 25.6252C20.6974 26.3724 22.9129 27.5913 25.1163 28.4476C25.4238 28.5668 25.6992 28.7651 25.8865 29.0375C26.4083 29.7927 26.213 30.8534 25.2946 31.3631C24.4092 31.8549 21.9724 32.0913 20.8687 32.2806C19.7269 32.4759 17.0458 33.199 16.0502 32.6602Z" fill="#FEFDFD" />
@@ -84,7 +91,7 @@ export function YelpLogo() {
 
 export function ReviewsIoLogo() {
   return (
-    <svg className="rw-platform-logo" viewBox="0 0 58 58" fill="none" aria-label="Reviews.io">
+    <svg className="rw-platform-logo" viewBox="0 0 58 58" fill="none" role="img" aria-label="Reviews.io">
       <path d="M21.2331 34.4362L28.2965 30.1466L35.3599 34.4362L33.4884 26.4008L39.767 20.9633L31.4961 20.2987L28.2965 12.6862L25.0968 20.2987L16.826 20.9633L23.1046 26.4008L21.2331 34.4362ZM4.14807 53.1654V9.66536C4.14807 8.3362 4.62098 7.19835 5.56679 6.25182C6.5126 5.3053 7.64959 4.83203 8.97775 4.83203H47.6152C48.9434 4.83203 50.0803 5.3053 51.0262 6.25182C51.972 7.19835 52.4449 8.3362 52.4449 9.66536V38.6654C52.4449 39.9945 51.972 41.1324 51.0262 42.0789C50.0803 43.0254 48.9434 43.4987 47.6152 43.4987H13.8074L4.14807 53.1654ZM11.7548 38.6654H47.6152V9.66536H8.97775V41.3841L11.7548 38.6654Z" fill="#428627" />
     </svg>
   );

@@ -3,9 +3,11 @@
 // Each renders the card's contents; the caller owns the <section> around it.
 import { TickSingleIcon, AlertTriangleIcon } from './planIcons';
 
+// The card titles (here, IdvDetails, SuccessStep) are <h3> for their styling
+// but sit straight under the page's <h1>; aria-level={2} closes the skip.
 export function IdvCardTitle({ id, required = false }: { id?: string; required?: boolean }) {
   return (
-    <h3 id={id} className="rf-sx-idv-title">
+    <h3 aria-level={2} id={id} className="rf-sx-idv-title">
       Renter Identity Verification{required && <span className="rf-idd-req" aria-hidden="true"> *</span>}
     </h3>
   );
@@ -23,7 +25,7 @@ export function IdvPopupNote() {
 
 export function IdvCompleteTitle({ id }: { id?: string }) {
   return (
-    <h3 id={id} className="rf-sx-idv-title rf-sx-idv-title--tick">
+    <h3 aria-level={2} id={id} className="rf-sx-idv-title rf-sx-idv-title--tick">
       <TickSingleIcon size={24} className="rf-sx-idv-tick" />
       ID Verification Complete
     </h3>
@@ -45,7 +47,7 @@ export function IdvFailedContent({ id, needsAssistance = false, remoteOperated =
 }) {
   return (
     <>
-      <h3 id={id} className="rf-sx-idv-title rf-sx-idv-title--tick">
+      <h3 aria-level={2} id={id} className="rf-sx-idv-title rf-sx-idv-title--tick">
         <AlertTriangleIcon size={24} className="rf-sx-idv-alert" />
         {needsAssistance ? 'Verification Needs Assistance' : 'ID Verification Failed'}
       </h3>
@@ -68,7 +70,7 @@ export function IdvFailedContent({ id, needsAssistance = false, remoteOperated =
 export function IdvLaterContent({ id, required = false, onVerifyNow }: { id?: string; required?: boolean; onVerifyNow: () => void }) {
   return (
     <>
-      <h3 id={id} className="rf-sx-idv-title rf-sx-idv-title--tick">
+      <h3 aria-level={2} id={id} className="rf-sx-idv-title rf-sx-idv-title--tick">
         <TickSingleIcon size={24} className="rf-sx-idv-tick" />
         Verify ID Later
       </h3>

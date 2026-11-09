@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './PropertyInfo.css';
 import { useStickySlot, useMediaQuery, MOBILE_STICKY_QUERY } from '@shared/stickyStack';
@@ -432,6 +432,8 @@ export function PropertyInfo(props: Props) {
   const [reservationCode, setReservationCode] = useState('');
   const [reservationBusy, setReservationBusy] = useState(false);
   const [reservationError, setReservationError] = useState('');
+  // useId: a fixed id would collide when the widget is on a page twice.
+  const resErrorId = useId();
   const [messageOpen, setMessageOpen] = useState(false);
   /* The whole portfolio, for the contact modal's dropdown. Fetched only once
      the modal is first opened: a shopper who never contacts anyone should not
@@ -965,6 +967,18 @@ export function PropertyInfo(props: Props) {
     };
   }, [hoursOpen]);
 
+  // "See all Hours" and the Locations circle keep their <a> (the CSS is built
+  // on it) but act, rather than navigate — so they are announced as buttons and
+  // Space activates them like one.
+  const asButton = (act: () => void) => ({
+    role: 'button',
+    onClick: (e: React.MouseEvent) => { e.preventDefault(); act(); },
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === ' ') { e.preventDefault(); act(); }
+    },
+  });
+  const seeHoursButton = { ...asButton(() => setHoursOpen(true)), 'aria-haspopup': 'dialog' as const };
+
   const hoursModal = hoursOpen && (
     <div className="pi-hours-overlay" onMouseDown={() => setHoursOpen(false)}>
       <div
@@ -1012,6 +1026,9 @@ export function PropertyInfo(props: Props) {
   const lightboxEl = lightbox && (
     <div
       className="pi-lightbox"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Photo gallery"
       onClick={closeLightbox}
       {...lbSwipe.handlers}
     >
@@ -1030,10 +1047,10 @@ export function PropertyInfo(props: Props) {
             width/height below, so the box and the mark can never disagree. */}
         <CloseCircleIcon outlined size={isMobileViewport ? 32 : 52} />
       </button>
-      <span className="pi-lb-arrow pi-lb-arrow--prev" role="button" tabIndex={0} aria-label="Previous photo"
+      <button type="button" className="pi-lb-arrow pi-lb-arrow--prev" aria-label="Previous photo"
         onClick={(e) => { e.stopPropagation(); lbPrev(); }}>
         <LightboxChevron size={20} className="pi-lb-chev" />
-      </span>
+      </button>
       {/* The wrap deliberately does NOT swallow clicks: it's 90vw x 80vh, so on a
           phone it was almost the whole screen and left nowhere to tap to close.
           Only the photo itself is exempt. */}
@@ -1050,7 +1067,8 @@ export function PropertyInfo(props: Props) {
             onTransitionEnd={onLbTrackEnd}
           >
             {[slides[slides.length - 1], ...slides, slides[0]].map((src, i) => (
-              <span className="pi-lb-cell" key={`lb-${i}-${src}`} aria-hidden={i === lbCell ? undefined : true}>
+              /* inert, not aria-hidden: an off-screen video cell holds a play button. */
+              <span className="pi-lb-cell" key={`lb-${i}-${src}`} {...(i === lbCell ? {} : { inert: '' as unknown as boolean })}>
                 {videoSlides.has(src)
                   /* The clones at either end mean a video appears three times
                      in this list; `active` keys off the CELL, so only the one
@@ -1086,10 +1104,10 @@ export function PropertyInfo(props: Props) {
           </div>
         )}
       </span>
-      <span className="pi-lb-arrow" role="button" tabIndex={0} aria-label="Next photo"
+      <button type="button" className="pi-lb-arrow" aria-label="Next photo"
         onClick={(e) => { e.stopPropagation(); lbNext(); }}>
         <LightboxChevron size={20} className="pi-lb-chev" />
-      </span>
+      </button>
       {/* No stopPropagation: a tap on the counter should close like anywhere else */}
       <span className="pi-lb-counter">{index + 1} / {slides.length}</span>
     </div>
@@ -1103,7 +1121,7 @@ export function PropertyInfo(props: Props) {
         <div className="pi-hero-card">
           <ImageFill className="pi-hero-img" src={heroSlide} w={640} />
           <span className="pi-hero-overlay" style={{ background: `rgba(16, 19, 24, ${overlay})` }} />
-          <button className="pi-hero-expand" onClick={() => setLightbox(true)} aria-label="Open photo gallery">
+          <button type="button" className="pi-hero-expand" onClick={() => setLightbox(true)} aria-label="Open photo gallery">
             <PhotoExpandIcon size={48} />
           </button>
           <div className="pi-hero-content">
@@ -1162,7 +1180,6 @@ export function PropertyInfo(props: Props) {
         onPointerMove={onGalleryMove}
         onPointerUp={onGalleryUp}
         onPointerCancel={onGalleryUp}
-        aria-label="Open photo gallery"
       >
         {/* Every slide, side by side. `current` is still what the
             lightbox opens on; this is only what is on screen. */}
@@ -1194,7 +1211,7 @@ export function PropertyInfo(props: Props) {
           <button type="button" className="pi-gallery-arrow pi-gallery-arrow--prev" aria-label="Previous photo" onClick={prev}>
             <ChevronRight size={compact ? 19 : 32} />
           </button>
-          <span className="pi-gallery-dots">
+          <span className="pi-gallery-dots" aria-hidden="true">
             {slides.map((_, i) => (
               <span key={i} className={`pi-gallery-dot${i === index ? ' active' : ''}`} onClick={() => setIndex(i)} />
             ))}
@@ -1227,7 +1244,7 @@ export function PropertyInfo(props: Props) {
           placeholder="Reservation Code"
           aria-label="Reservation Code"
           aria-invalid={reservationError ? true : undefined}
-          aria-describedby={reservationError ? 'pi-res-error' : undefined}
+          aria-describedby={reservationError ? resErrorId : undefined}
           value={reservationCode}
           autoFocus
           autoCapitalize="characters"
@@ -1239,7 +1256,7 @@ export function PropertyInfo(props: Props) {
           {reservationBusy ? 'Finding…' : 'Go'}
         </button>
         {reservationError && (
-          <div id="pi-res-error" className="pi-res-error" role="alert">
+          <div id={resErrorId} className="pi-res-error" role="alert">
             <AlertIcon size={24} className="pi-res-error-ico" />
             <span>{reservationError}</span>
           </div>
@@ -1317,7 +1334,7 @@ export function PropertyInfo(props: Props) {
                 <span className={`pi-small-pill ${callCenterStatusClass}`}>{displayCallCenterStatus}{hoursText(displayCallCenterNote)}</span>
               )}
               <a className="pi-small-seehours pi-small-quiet" href="#"
-                onClick={(e) => { e.preventDefault(); setHoursOpen(true); }}>See all Hours</a>
+                {...seeHoursButton}>See all Hours</a>
             </div>
           </div>
           {renderReservation(true)}
@@ -1379,7 +1396,7 @@ export function PropertyInfo(props: Props) {
             )}
             <div className="pi-contact-row pi-contact-row--indent">
               <a className="pi-underline pi-see-hours" href="#"
-                onClick={(e) => { e.preventDefault(); setHoursOpen(true); }}>See all Hours</a>
+                {...seeHoursButton}>See all Hours</a>
             </div>
           </div>
         </div>
@@ -1455,7 +1472,7 @@ export function PropertyInfo(props: Props) {
             variant="hero"
             className="pi-breadcrumb pi-m-breadcrumb"
           />
-          <button className="pi-m-expand" onClick={() => setLightbox(true)} aria-label="Open photo gallery">
+          <button type="button" className="pi-m-expand" onClick={() => setLightbox(true)} aria-label="Open photo gallery">
             <PhotoExpandIcon size={40} />
           </button>
         </div>
@@ -1504,10 +1521,9 @@ export function PropertyInfo(props: Props) {
               <a
                 className="pi-m-circle-item"
                 href="#"
-                onClick={(e) => {
-                  e.preventDefault();
+                {...asButton(() => {
                   document.querySelector('.nl-wrapper')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }}
+                })}
               >
                 <span className="pi-m-circle"><LocationsIcon size={24} /></span>
                 <span className="pi-m-circle-label">Locations</span>
@@ -1525,7 +1541,7 @@ export function PropertyInfo(props: Props) {
           <p><span className={callCenterStatusClass}>{displayCallCenterStatus}</span>{hoursText(displayCallCenterNote)}</p>
         )}
         <a className="pi-m-seehours pi-underline" href="#"
-          onClick={(e) => { e.preventDefault(); setHoursOpen(true); }}>See all Hours</a>
+          {...seeHoursButton}>See all Hours</a>
       </div>
     </div>
   );

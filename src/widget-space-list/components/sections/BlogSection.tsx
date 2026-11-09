@@ -26,7 +26,7 @@ const NO_IMAGE = 'linear-gradient(135deg, #dfe3e8 0%, #c4cdd5 100%)';
 
 function ShareIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/>
     </svg>
   );
@@ -138,7 +138,7 @@ export function BlogCarousel({ posts, footer }: BlogCarouselProps) {
                       {byline && <p className="sl-blog2-byline">{byline}</p>}
                       {p.excerpt && <p className="sl-blog2-excerpt">{p.excerpt}</p>}
                       <div className="sl-blog2-footer">
-                        <a href={linked ? p.href : '#'} className="sl-blog2-read-more">Read more</a>
+                        <a href={linked ? p.href : '#'} className="sl-blog2-read-more" aria-label={`Read more: ${p.title}`}>Read more</a>
                         <div className="sl-blog2-share">
                           <ShareIcon />
                           <a href="#" className="sl-blog2-share-link">Share</a>
@@ -158,6 +158,7 @@ export function BlogCarousel({ posts, footer }: BlogCarouselProps) {
       {total > 1 && (
         <div className="sl-blog2-pagination">
           <button
+            type="button"
             className="sl-blog2-arrow"
             onClick={carousel.prev}
             disabled={!carousel.canPrev}
@@ -175,6 +176,7 @@ export function BlogCarousel({ posts, footer }: BlogCarouselProps) {
             label="Go to post {n}"
           />
           <button
+            type="button"
             className="sl-blog2-arrow"
             onClick={carousel.next}
             disabled={!carousel.canNext}

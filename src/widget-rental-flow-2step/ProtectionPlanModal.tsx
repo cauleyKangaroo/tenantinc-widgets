@@ -14,9 +14,10 @@
 // pointer away is its dismissal.
 // ===========================================================================
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseCircleIcon } from '@shared/ui';
+import { useDialogFocus } from './useDialogFocus';
 import { FireGlyph, DropGlyph, EyeGlyph, WindGlyph, SnowGlyph, DownloadIcon } from './planIcons';
 
 /** The covered causes, in the design's order. */
@@ -86,6 +87,8 @@ export function ProtectionPlanModal({
   /** Brochure PDF. Absent → the button is inert rather than a dead link. */
   brochureUrl?: string;
 }) {
+  const titleId = useId();
+  const closeRef = useDialogFocus<HTMLButtonElement>(open);
   // Escape closes, and the page behind doesn't scroll while it's up.
   useEffect(() => {
     if (!open) return;
@@ -107,16 +110,16 @@ export function ProtectionPlanModal({
         className="rf-pp-card"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="rf-pp-title"
+        aria-labelledby={titleId}
         // Stop a click inside the card reaching the overlay's close handler.
         onClick={(e) => e.stopPropagation()}
       >
-        <button type="button" className="rf-pp-close" onClick={onClose} aria-label="Close">
+        <button type="button" className="rf-pp-close" onClick={onClose} aria-label="Close" ref={closeRef}>
           {/* Filled disc: .rf-pp modal is #fff. */}
           <CloseCircleIcon size={32} />
         </button>
 
-        <PlanCoverageBody brochureUrl={brochureUrl} titleId="rf-pp-title" />
+        <PlanCoverageBody brochureUrl={brochureUrl} titleId={titleId} />
       </div>
     </div>
   );

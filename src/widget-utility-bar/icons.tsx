@@ -7,7 +7,7 @@ import React from 'react';
 
 export function InfoIcon({ size = 22 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" aria-hidden="true" focusable="false">
       <path
         fillRule="evenodd"
         clipRule="evenodd"
@@ -20,7 +20,7 @@ export function InfoIcon({ size = 22 }: { size?: number }) {
 
 export function CloseIcon({ size = 20 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 34 34" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 34 34" fill="none" aria-hidden="true" focusable="false">
       <path
         d="M29 7.41714L26.5829 5L17 14.5829L7.41714 5L5 7.41714L14.5829 17L5 26.5829L7.41714 29L17 19.4171L26.5829 29L29 26.5829L19.4171 17L29 7.41714Z"
         fill="currentColor"

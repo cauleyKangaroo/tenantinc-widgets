@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import type { SpaceType, UnitSize } from '../types';
 import { DEFAULT_FILTERS, activeFilterCount, type FilterState } from '../filters';
 import { TYPE_OPTIONS, SIZE_OPTIONS } from '../data';
@@ -36,7 +36,7 @@ function toggle<T>(list: T[], value: T): T[] {
 
 function FilterIcon() {
   return (
-    <svg width="17" height="15" viewBox="0 0 17 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="17" height="15" viewBox="0 0 17 15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
       <path d="M5 8.33333C3.45 8.33333 2.15833 9.4 1.78333 10.8333H0V12.5H1.78333C2.15833 13.9333 3.45 15 5 15C6.55 15 7.84167 13.9333 8.21667 12.5H16.6667V10.8333H8.21667C7.84167 9.4 6.55 8.33333 5 8.33333ZM5 13.3333C4.08333 13.3333 3.33333 12.5833 3.33333 11.6667C3.33333 10.75 4.08333 10 5 10C5.91667 10 6.66667 10.75 6.66667 11.6667C6.66667 12.5833 5.91667 13.3333 5 13.3333ZM14.8833 2.5C14.5083 1.06667 13.2167 0 11.6667 0C10.1167 0 8.825 1.06667 8.45 2.5H0V4.16667H8.45C8.825 5.6 10.1167 6.66667 11.6667 6.66667C13.2167 6.66667 14.5083 5.6 14.8833 4.16667H16.6667V2.5H14.8833ZM11.6667 5C10.75 5 10 4.25 10 3.33333C10 2.41667 10.75 1.66667 11.6667 1.66667C12.5833 1.66667 13.3333 2.41667 13.3333 3.33333C13.3333 4.25 12.5833 5 11.6667 5Z" fill="currentColor"/>
     </svg>
   );
@@ -80,6 +80,8 @@ export function FilterModal({
   }, [onClose]);
 
   const showSize = filters.types.length === 0 || filters.types.includes('storage');
+  // useId: the widget can sit on a page twice.
+  const uid = useId();
 
   return (
     <div className="sl-modal-overlay" onClick={onClose}>
@@ -87,21 +89,21 @@ export function FilterModal({
         className="sl-filter-modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Filter Spaces"
+        aria-labelledby={`${uid}-title`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="sl-modal-header">
           <div className="sl-filter-title-row">
             <span className="sl-filter-icon"><FilterIcon /></span>
-            <span className="sl-filter-title">Filter Spaces</span>
+            <span className="sl-filter-title" id={`${uid}-title`}>Filter Spaces</span>
             <span className="sl-filter-badge">{badge}</span>
           </div>
           <div className="sl-modal-header-right">
             {/* Reset is immediate, as it always was: the live filters go back
                 to the defaults and the modal closes. */}
-            <button className="sl-modal-reset" onClick={() => { onApply(DEFAULT_FILTERS); onClose(); }}>Reset</button>
-            <button className="sl-modal-close" onClick={onClose} aria-label="Close filters">
+            <button type="button" className="sl-modal-reset" onClick={() => { onApply(DEFAULT_FILTERS); onClose(); }}>Reset</button>
+            <button type="button" className="sl-modal-close" onClick={onClose} aria-label="Close filters">
               {/* Filled disc: the filter modal is #ffffff. 32 is the mark's own
                   Figma size and it fills the 32px button box exactly — the box
                   carries no padding, so nothing insets it back down. */}
@@ -125,14 +127,16 @@ export function FilterModal({
           {/* Type — multi select; empty = all types shown */}
           {typeOptions.length > 0 && (
           <div className="sl-filter-section">
-            <div className="sl-filter-label">Type:</div>
-            <div className="sl-pills">
+            <div className="sl-filter-label" id={`${uid}-type`}>Type:</div>
+            <div className="sl-pills" role="group" aria-labelledby={`${uid}-type`}>
               {typeOptions.map((opt) => {
                 const val = opt.value as SpaceType;
                 const active = filters.types.includes(val);
                 return (
                   <button
                     key={opt.value}
+                    type="button"
+                    aria-pressed={active}
                     className={`sl-pill${active ? ' active' : ''}`}
                     onClick={() => {
                       const next = active
@@ -157,14 +161,16 @@ export function FilterModal({
           {/* Size — only relevant when storage could be showing */}
           {showSize && (
             <div className="sl-filter-section">
-              <div className="sl-filter-label">Size:</div>
-              <div className="sl-pills">
+              <div className="sl-filter-label" id={`${uid}-size`}>Size:</div>
+              <div className="sl-pills" role="group" aria-labelledby={`${uid}-size`}>
                 {SIZE_OPTIONS.map((opt) => {
                   const active = filters.sizes.includes(opt.value);
                   return (
                     <button
                       key={opt.value}
-                      className={`sl-pill${active ? ' active' : ''}`}
+                      type="button"
+                    aria-pressed={active}
+                    className={`sl-pill${active ? ' active' : ''}`}
                       onClick={() =>
                         setFilters({ ...filters, sizes: toggle<UnitSize>(filters.sizes, opt.value) })
                       }
@@ -181,13 +187,15 @@ export function FilterModal({
           {/* Space Features — multi select */}
           {featureOptions.length > 0 && (
           <div className="sl-filter-section">
-            <div className="sl-filter-label">Space Features:</div>
-            <div className="sl-pills sl-pills-wrap">
+            <div className="sl-filter-label" id={`${uid}-feat`}>Space Features:</div>
+            <div className="sl-pills sl-pills-wrap" role="group" aria-labelledby={`${uid}-feat`}>
               {featureOptions.map((name) => {
                 const active = filters.features.includes(name);
                 return (
                   <button
                     key={name}
+                    type="button"
+                    aria-pressed={active}
                     className={`sl-pill${active ? ' active' : ''}`}
                     onClick={() => setFilters({ ...filters, features: toggle(filters.features, name) })}
                   >
@@ -203,13 +211,13 @@ export function FilterModal({
           {/* Amenities — multi select, AND */}
           {amenityOptions.length > 0 && (
           <div className="sl-filter-section">
-            <div className="sl-filter-label">Amenities</div>
+            <div className="sl-filter-label" id={`${uid}-amen`}>Amenities</div>
             {/* @shared/ui's Checkbox — the kit control, as #08's filter panel
                 and the rental flow use. The bare <input type="checkbox"> this
                 replaces was the browser's own, restyled with accent-color, so
                 it took its tick, its focus ring and its disabled look from the
                 platform rather than from the design. */}
-            <div className="sl-checkboxes">
+            <div className="sl-checkboxes" role="group" aria-labelledby={`${uid}-amen`}>
               {amenityOptions.map((amenity) => (
                 <Checkbox
                   key={amenity}
@@ -229,8 +237,8 @@ export function FilterModal({
           {/* Promotions — multi select, OR */}
           {promotionOptions.length > 0 && (
           <div className="sl-filter-section">
-            <div className="sl-filter-label">Promotions</div>
-            <div className="sl-checkboxes">
+            <div className="sl-filter-label" id={`${uid}-promo`}>Promotions</div>
+            <div className="sl-checkboxes" role="group" aria-labelledby={`${uid}-promo`}>
               {promotionOptions.map((promo) => (
                 <Checkbox
                   key={promo}

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useId } from 'react';
 import { CloseCircleIcon } from '@shared/ui/icons';
 import { TagOutlineIcon } from './icons';
 
@@ -43,6 +43,8 @@ export function DisclaimerModal({
 
   // Blank lines in the API's description become paragraph breaks, matching the
   // two-paragraph frame. Falls back to a single block when there are none.
+  // useId, not a fixed id: two promo widgets on one page must not collide.
+  const titleId = useId();
   const paragraphs = body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
 
   return (
@@ -53,11 +55,11 @@ export function DisclaimerModal({
         className="promo-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="promo-modal-title"
+        aria-labelledby={titleId}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="promo-modal-head">
-          <p className="promo-modal-title" id="promo-modal-title">
+          <p className="promo-modal-title" id={titleId}>
             {/* Hollow variant here — the promo bar's filled tag is a different
                 style in the design (Figma Tag style="Stroke"). */}
             <TagOutlineIcon size={24} />
