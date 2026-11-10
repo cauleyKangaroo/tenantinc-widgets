@@ -37,13 +37,13 @@ import './SpacelistSettings.css';
 
 /*
  * TEMPORARY — local testing only. The tenant-proxy runs on the developer's
- * machine behind an ngrok free tunnel, so the base is hardcoded here and the
- * bypass header is sent on every call (without it ngrok answers a browser
- * fetch with its warning interstitial instead of JSON; the proxy's CORS
- * allow-list includes the header). Replace with the deployed proxy origin —
- * or a prop — before this leaves testing.
+ * machine behind ngrok; this is the account's STATIC domain, so it survives
+ * tunnel restarts. The bypass header is sent on every call (without it ngrok
+ * answers a browser fetch with its warning interstitial instead of JSON; the
+ * proxy's CORS allow-list includes the header). Replace with the deployed
+ * proxy origin — or a prop — before this leaves testing.
  */
-const PROXY_BASE = 'https://5e17-202-53-80-238.ngrok-free.app';
+const PROXY_BASE = 'https://included-shepherd-above.ngrok-free.app';
 const PROXY_HEADERS: Record<string, string> = { 'ngrok-skip-browser-warning': '1' };
 
 export interface SpacelistSettingsProps {
