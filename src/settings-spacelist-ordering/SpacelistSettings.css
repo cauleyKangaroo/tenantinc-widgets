@@ -79,6 +79,9 @@
 }
 .sos-badge--public { background: #def7ec; color: #046c4e; }
 
+/* A size band nested under its Storage group. */
+.sos-row--child { margin-left: 28px; }
+
 /* ── Drag-to-arrange (the catalogue) ── */
 .sos-row--draggable { cursor: grab; user-select: none; }
 .sos-row--draggable:active { cursor: grabbing; }

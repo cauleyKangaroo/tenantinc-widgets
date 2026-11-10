@@ -59,8 +59,12 @@ export interface SpacelistSettingsProps {
 
 interface DemoType { id: string; label: string; key: string; coverage?: boolean }
 interface RosterItem { id: string; name: string; spaceGroupId: string; pagePath: string }
-/** A space group as the proxy reduces it: no upstream id, the NAME is the identity. */
-interface SpaceGroup { name: string; tiers: number }
+/** The space list's SECTIONS, as the proxy classifies the tiers: one group per
+ *  type, with the size bands nested under storage. Keys are the identity. */
+interface SizeBand { key: string; name: string; tiers: number }
+interface SpaceGroup { key: string; name: string; tiers: number; sizes?: SizeBand[] }
+/** A property's saved arrangement: group (type) order, band order within storage. */
+interface PropertyOrders { types?: string[]; sizes?: string[] }
 
 type Loadable<T> =
   | { status: 'loading' }
@@ -161,22 +165,26 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
   const selected = rosterItems.find((p) => p.id === selectedId);
 
   /* ── Saved arrangements, read back on load ──────────────────────────────
-     GET /settings maps property id → the parsed `config` JSON off its row.
-     Failing soft here only costs the restored state. ── */
-  const [groupOrders, setGroupOrders] = useState<Record<string, string[]>>({});
+     GET /settings maps property id → the parsed `config` JSON off its row:
+     { groupOrder: [type keys], sizeOrder: [band keys] }. Failing soft here
+     only costs the restored state. ── */
+  const [groupOrders, setGroupOrders] = useState<Record<string, PropertyOrders>>({});
   useEffect(() => {
     if (!siteId) return undefined;
     let cancelled = false;
     fetch(`${PROXY_BASE}/api/spacelist/settings?siteId=${encodeURIComponent(siteId)}`, { headers: PROXY_HEADERS })
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<{ properties?: Record<string, { groupOrder?: unknown }> }>;
+        return res.json() as Promise<{ properties?: Record<string, { groupOrder?: unknown; sizeOrder?: unknown }> }>;
       })
       .then((json) => {
         if (cancelled || !json.properties) return;
-        const saved: Record<string, string[]> = {};
+        const saved: Record<string, PropertyOrders> = {};
         for (const [pid, cfg] of Object.entries(json.properties)) {
-          if (Array.isArray(cfg?.groupOrder)) saved[pid] = cfg.groupOrder.map(String);
+          const entry: PropertyOrders = {};
+          if (Array.isArray(cfg?.groupOrder)) entry.types = cfg.groupOrder.map(String);
+          if (Array.isArray(cfg?.sizeOrder)) entry.sizes = cfg.sizeOrder.map(String);
+          if (entry.types || entry.sizes) saved[pid] = entry;
         }
         // Local arrangements the editor already made this session win.
         setGroupOrders((prev) => ({ ...saved, ...prev }));
@@ -264,28 +272,55 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
   };
 
   /*
-   * Per-property GROUP arrangement — group NAMES, the only identity upstream
-   * provides. The saved order SORTS the live list rather than replacing it:
-   * names it does not mention sink to the end (new groups appear rather than
-   * vanish) and names the property no longer has are ignored by the join.
+   * Per-property arrangement, two levels: the GROUPS (types — storage,
+   * parking, wine…) and, within storage, its SIZE BANDS. A saved order SORTS
+   * the live list rather than replacing it: keys it does not mention sink to
+   * the end (new sections appear rather than vanish) and keys the property no
+   * longer sells are ignored by the join.
    */
   const groupList = groups?.status === 'ready' ? groups.data : [];
-  const groupOrder = useMemo(() => {
-    const base = groupList.map((g) => g.name);
-    const saved = selectedId ? groupOrders[selectedId] : undefined;
+  const applyOrder = (base: string[], saved?: string[]): string[] => {
     if (!saved?.length) return base;
-    const rank = new Map(saved.map((name, i) => [name, i]));
+    const rank = new Map(saved.map((key, i) => [key, i]));
     return [...base].sort((a, b) => (rank.get(a) ?? saved.length) - (rank.get(b) ?? saved.length));
-  }, [groupList, selectedId, groupOrders]);
-  const orderedGroups = useMemo(
-    () => groupOrder.map((name) => groupList.find((g) => g.name === name)).filter((g): g is SpaceGroup => !!g),
-    [groupOrder, groupList],
+  };
+  const savedOrders = selectedId ? groupOrders[selectedId] : undefined;
+  const typeOrderList = useMemo(
+    () => applyOrder(groupList.map((g) => g.key), savedOrders?.types),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [groupList, savedOrders?.types],
   );
-  const moveOverGroup = (overName: string) => {
+  const orderedGroups = useMemo(
+    () => typeOrderList.map((key) => groupList.find((g) => g.key === key)).filter((g): g is SpaceGroup => !!g),
+    [typeOrderList, groupList],
+  );
+  const storageBands = useMemo(() => {
+    const storage = groupList.find((g) => g.sizes?.length);
+    if (!storage?.sizes) return [] as SizeBand[];
+    const order = applyOrder(storage.sizes.map((s) => s.key), savedOrders?.sizes);
+    return order.map((key) => storage.sizes!.find((s) => s.key === key)).filter((s): s is SizeBand => !!s);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupList, savedOrders?.sizes]);
+
+  /*
+   * Both movers reorder the DISPLAYED list, never the raw saved array: a saved
+   * order can hold keys from an older scheme (or another property's past), and
+   * reordering that would silently no-op. What is on screen is the truth the
+   * drag manipulates, and storing it whole keeps applyOrder idempotent.
+   */
+  const moveOverType = (overKey: string) => {
     const from = dragId.current;
-    if (!from || from === overName || !selectedId) return;
+    if (!from || from === overKey || !selectedId) return;
     const pid = selectedId;
-    setGroupOrders((prev) => ({ ...prev, [pid]: reorder(prev[pid] ?? groupOrder, from, overName) }));
+    const next = reorder(typeOrderList, from, overKey);
+    setGroupOrders((prev) => ({ ...prev, [pid]: { ...prev[pid], types: next } }));
+  };
+  const moveOverSize = (overKey: string) => {
+    const from = dragId.current;
+    if (!from || from === overKey || !selectedId) return;
+    const pid = selectedId;
+    const next = reorder(storageBands.map((s) => s.key), from, overKey);
+    setGroupOrders((prev) => ({ ...prev, [pid]: { ...prev[pid], sizes: next } }));
   };
 
   /* ── Save — PATCHes the picked property's PropertiesInternal row:
@@ -294,7 +329,11 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
   const [saveError, setSaveError] = useState('');
   const onSave = () => {
     if (!selectedId || saveState === 'saving') return;
-    const payload = { propertyId: selectedId, order: orderedGroups.map((g) => g.name) };
+    const payload = {
+      propertyId: selectedId,
+      order: orderedGroups.map((g) => g.key),
+      ...(storageBands.length ? { sizeOrder: storageBands.map((s) => s.key) } : {}),
+    };
     // eslint-disable-next-line no-console
     console.log('[spacelist-settings] SAVE', { siteId, propertyName: selected?.name, ...payload });
     setSaveState('saving');
@@ -352,24 +391,40 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
     </div>
   );
 
+  /* The group rows: one per type, the size bands indented under Storage. Two
+     drag scopes — a band reorders within storage, a group among the groups. */
   const groupRows = (sortable: boolean) => (
     !selectedId ? <div className="sos-state">Pick a property to see its space groups.</div>
       : !groups || groups.status !== 'ready' ? (groups && stateLine(groups, 'space groups'))
-        : !groups.data.length ? <div className="sos-state">This property has no space groups.</div>
+        : !groups.data.length ? <div className="sos-state">This property has no spaces.</div>
           : (
             <div className="sos-rows">
               {(sortable ? orderedGroups : groups.data).map((g) => (
-                <div
-                  className={`sos-row${sortable ? ' sos-row--draggable' : ''}${draggingId === g.name ? ' sos-row--dragging' : ''}`}
-                  key={g.name}
-                  {...(sortable ? dragProps(g.name, moveOverGroup) : {})}
-                >
-                  {sortable && <span className="sos-grip" aria-hidden="true">⠿</span>}
-                  <div className="sos-name">
-                    {g.name}
-                    <small>{g.tiers} tier{g.tiers === 1 ? '' : 's'}</small>
+                <React.Fragment key={g.key}>
+                  <div
+                    className={`sos-row${sortable ? ' sos-row--draggable' : ''}${draggingId === g.key ? ' sos-row--dragging' : ''}`}
+                    {...(sortable ? dragProps(g.key, moveOverType) : {})}
+                  >
+                    {sortable && <span className="sos-grip" aria-hidden="true">⠿</span>}
+                    <div className="sos-name">
+                      {g.name}
+                      <small>{g.tiers} space{g.tiers === 1 ? '' : 's'}</small>
+                    </div>
                   </div>
-                </div>
+                  {(sortable ? (g.sizes?.length ? storageBands : []) : g.sizes ?? []).map((s) => (
+                    <div
+                      className={`sos-row sos-row--child${sortable ? ' sos-row--draggable' : ''}${draggingId === s.key ? ' sos-row--dragging' : ''}`}
+                      key={s.key}
+                      {...(sortable ? dragProps(s.key, moveOverSize) : {})}
+                    >
+                      {sortable && <span className="sos-grip" aria-hidden="true">⠿</span>}
+                      <div className="sos-name">
+                        {s.name}
+                        <small>{s.tiers} space{s.tiers === 1 ? '' : 's'}</small>
+                      </div>
+                    </div>
+                  ))}
+                </React.Fragment>
               ))}
             </div>
           )
