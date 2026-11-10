@@ -4,7 +4,8 @@ import { Button, isPossiblePhone } from '@shared/ui';
 import type { IdvApi, IdvScope } from './idvApi';
 import type { IdvRequirement } from './idvPolicy';
 import { useIdvController } from './useIdvController';
-import { IdvCardTitle, IdvPopupNote, IdvCompleteTitle, IdvAddressNotice, IdvFailedContent, IdvLaterContent } from './IdvStatus';
+import { IdvCardTitle, IdvPopupNote, IdvCompleteTitle, IdvAddressNotice, IdvFailedContent } from './IdvStatus';
+import { TickSingleIcon, ClockGlyph, PhoneGlyph } from './planIcons';
 import { IdVerifyModal } from './IdVerifyModal';
 import { IdIllustration } from './IdIllustration';
 import { isRawIdvId } from './idvLinking';
@@ -25,6 +26,17 @@ export interface OneStepIdvConfig {
   /** No staff on site: a failed check points to the phone, not the counter. */
   remoteOperated?: boolean;
   facilityPhone?: string;
+  /** The property's office hours, for the in-store card. */
+  facilityOfficeHours?: string[];
+}
+
+/** tel: link for the facility phone — same rule as SuccessStep's. */
+function phoneHref(phone?: string): string | undefined {
+  const raw = phone?.trim();
+  if (!raw || !/^\+?[\d\s().-]+$/.test(raw)) return undefined;
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 15) return undefined;
+  return `tel:${raw.startsWith('+') ? '+' : ''}${digits}`;
 }
 
 /** The address and licence after verification, for the tenant's contact. */
@@ -213,7 +225,36 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
       ) : failedCheck || needsAssistance ? (
         <IdvFailedContent id={titleId} needsAssistance={needsAssistance} remoteOperated={config.remoteOperated} phone={config.facilityPhone} onReverify={controller.retry} />
       ) : deferred ? (
-        <IdvLaterContent id={titleId} onVerifyNow={() => setLater(false)} />
+        <div className="rf-sx-idv--instore">
+          <div className="rf-sx-idv-instore-main">
+            <h3 aria-level={2} id={titleId} className="rf-sx-idv-title rf-sx-idv-title--tick">
+              <TickSingleIcon size={24} className="rf-sx-idv-tick" />
+              Verify ID In-Store
+            </h3>
+            <p className="rf-sx-idv-lede" role="status">
+              You&rsquo;ll receive your access code once your ID is verified. Bring your ID to the store on move-in day or call the store for help getting access.
+            </p>
+            <div className="rf-sx-idv-row">
+              <ClockGlyph size={24} className="rf-sx-idv-ico" />
+              <div>
+                <p className="rf-sx-idv-strong">Office Hours</p>
+                {(config.facilityOfficeHours?.length ? config.facilityOfficeHours : ['Hours unavailable — call the store']).map((line) => (
+                  <p className="rf-sx-idv-line" key={line}>{line}</p>
+                ))}
+              </div>
+            </div>
+            <div className="rf-sx-idv-row rf-sx-idv-row--mid">
+              <PhoneGlyph size={24} className="rf-sx-idv-ico" />
+              {phoneHref(config.facilityPhone) && config.facilityPhone
+                ? <a className="rf-sx-idv-link rf2-idv-phone" href={phoneHref(config.facilityPhone)}>{config.facilityPhone}</a>
+                : <span className="rf-sx-idv-line">Phone unavailable</span>}
+            </div>
+          </div>
+          <div className="rf-sx-idv-instore-aside rf2-idv-aside">
+            <p className="rf-sx-idv-strong">Changed your mind?</p>
+            <Button tone="secondary" className="rf-sx-btn rf2-idv-primary" onClick={() => setLater(false)}>Verify ID Now</Button>
+          </div>
+        </div>
       ) : (
         <IdvCardTitle id={titleId} required={config.requirement === 'required'} title="ID Verification" />
       )}

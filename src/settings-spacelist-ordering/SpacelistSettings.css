@@ -41,7 +41,7 @@
 }
 
 /* ── Panels / cards ── */
-.sos-panel { padding: 16px 20px 88px; }
+.sos-panel { padding: 16px 20px 28px; }
 .sos-card {
   border: 1px solid var(--line); border-radius: 12px;
   padding: 16px; background: #fff;
@@ -99,22 +99,18 @@
 }
 @keyframes sos-spin { to { transform: rotate(360deg); } }
 
-/* ── Save bar (disabled until persistence lands) ── */
-.sos-savebar {
-  position: fixed; left: 0; right: 0; bottom: 0;
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 20px; background: #fff; border-top: 1px solid var(--line);
-  font-family: inherit;
-}
-.sos-note { font-size: 11.5px; color: var(--quiet); flex: 1; }
-.sos-savebar button {
+/* ── Save (Property tab) ── */
+.sos-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 14px; }
+.sos-actions .sos-state { padding: 0; }
+.sos-saved { font-size: 13px; font-weight: 600; color: #046c4e; }
+.sos-save {
   font: inherit; font-weight: 600; font-size: 13px;
-  padding: 9px 22px; border-radius: 999px; border: none;
+  padding: 9px 26px; border-radius: 999px; border: none;
   background: var(--night); color: #fff; cursor: pointer;
 }
-.sos-savebar button:disabled { opacity: .35; cursor: not-allowed; }
+.sos-save:disabled { opacity: .35; cursor: not-allowed; }
 
 @media (max-width: 420px) {
-  .sos-hd, .sos-tabs, .sos-panel, .sos-savebar { padding-left: 14px; padding-right: 14px; }
+  .sos-hd, .sos-tabs, .sos-panel { padding-left: 14px; padding-right: 14px; }
   .sos-row { flex-wrap: wrap; }
 }

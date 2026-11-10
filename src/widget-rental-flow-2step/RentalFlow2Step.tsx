@@ -3664,6 +3664,7 @@ export function RentalFlow2Step({
               policyPending: idvPolicyPending,
               remoteOperated: idvRemoteOperated === true,
               facilityPhone: formatUsPhone(propertyInfo?.phone),
+              facilityOfficeHours: propertyInfo?.officeHours?.length ? propertyInfo.officeHours : confHours?.officeHours,
             } : undefined}
             paymentCycles={offeredCycles}
             keyShareOptions={keyShareOptions?.length ? keyShareOptions : (previewContent ? PREVIEW_KEY_SHARES : keyShareOptions)}

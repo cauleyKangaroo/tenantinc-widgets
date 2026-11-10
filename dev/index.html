@@ -1206,12 +1206,14 @@ Special</textarea>
         <em>"Embed your own external widget settings"</em> iframe. The build
         emits its shell to <code>dist/spacelist-ordering-settings.html</code>,
         which loads the bundle from right next to itself; Duda appends
-        <code>siteId</code>/<code>elementId</code> to that URL. <strong>Static
-        build</strong> — every list is bundled demo data, no network calls:
-        Company (space-type catalogue), Property Group (space groups, Website
-        Group badged), Property (<strong>pick the property first</strong> — it
-        sits on the dynamic page — then its storage types with unit counts).
-        Live data + Save return with the tenant-proxy endpoints.
+        <code>siteId</code>/<code>elementId</code> to that URL. <strong>Live
+        through the dev ngrok tunnel</strong> (hardcoded while testing):
+        properties from <code>PropertiesInternal</code> via
+        <code>/api/spacelist/rows</code>, the picked property's space groups
+        via the hb passthrough. Property tab: <strong>pick the property
+        first</strong> (dynamic page), drag its groups into order, and
+        <strong>Save console.logs the payload</strong> — open devtools to see
+        it. Company tab's catalogue is still demo data.
       </p>
     </div>
 
@@ -2174,13 +2176,13 @@ Special</textarea>
     });
 
     // ── Spacelist-Ordering external settings (Widget Builder iframe app) ──
-    // Static build: bundled demo data, no controls. The fixed ids stand in for
-    // the ones Duda appends to the shell's URL (they only label the instance
-    // line and the future persistence key).
+    // Live against the dev tenant-proxy through its ngrok tunnel (hardcoded in
+    // the component while testing). The siteId is the real staging site the
+    // proxy resolves; elementId stands in for the one Duda appends.
     require(['/dist/settings-spacelist-ordering.js'], function (widget) {
       widget.init({
         container: document.getElementById('sl-settings-container'),
-        props: { siteId: 'devharness', elementId: '1234567890', page: 'dev-harness' },
+        props: { siteId: '37c2908c', elementId: '1234567890', page: 'dev-harness' },
       });
     });
 
