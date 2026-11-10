@@ -25,7 +25,12 @@
   JS reads them back with the same data.siteId/data.elementId.
 =========================================================================== -->
 <style>
-  html, body { margin: 0; padding: 0; background: #fff; }
+  /* The React wrapper (.sos-wrap) is the scroller — Duda's settings iframe has
+     its own scrolling off, so the page must scroll inside itself. The document
+     is pinned to the iframe's height with overflow hidden so there are never
+     two competing scrollbars. */
+  html, body { margin: 0; padding: 0; background: #fff; height: 100%; overflow: hidden; }
+  #app { height: 100%; }
   #boot-error {
     font-family: system-ui, sans-serif; font-size: 13px; color: #c81e1e;
     padding: 20px; display: none;
