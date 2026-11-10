@@ -7,24 +7,26 @@
 // edited, appending the instance on the query string —
 //   ?siteId=…&elementId=…&widgetId=…&page=…&locale=…&version=…
 // (https://developer.duda.co/docs/iframed-configuration). There is NO
-// postMessage/data.config bridge for this input type: settings are stored in
-// our backend keyed by elementId + siteId — Duda's own recommendation — and
-// the widget's page JS receives the same data.elementId/data.siteId to read
-// them back. The shell forwards those params here as props.
+// postMessage/data.config bridge for this input type, so the panel talks to
+// the tenant-proxy instead; the shell forwards Duda's params here as props.
 //
-// WHAT IS LIVE vs STATIC right now:
-//   LIVE — the property roster (GET {PROXY}/api/spacelist/rows: the site's
-//     own `PropertiesInternal` rows, the same ones the dynamic property pages
-//     are built from), and PERSISTENCE: Save writes the picked property's
-//     group order to the `spacelistConfig` collection
-//     (POST {PROXY}/api/spacelist/settings, one row per instanceKey +
-//     propertyId), and the panel reads every saved arrangement back on load
-//     (GET …/settings).
-//   STATIC — the space-group list itself (and the Company tab's catalogue):
-//     the live hb read is parked until the proxy has a storage key the
-//     gateway accepts; the list below is demo data shaped like the real
-//     /space-groups answer. The ORDER the editor arranges is what persists,
-//     so swapping the list for the live one later changes no save shape.
+// THE DATA, all through the tenant-proxy (branch feat/spacelist-settings):
+//   GET  /api/spacelist/rows      — the property roster: the site's own
+//        `PropertiesInternal` rows, the same ones the dynamic property pages
+//        are built from. Each row also carries its `spaceGroupId` (the public
+//        "Website Group") — the second id the groups call needs.
+//   GET  /api/spacelist/groups?propertyId&spaceGroupId — the property's space
+//        groups, LIVE: the proxy reads the site's `login_api_base` site text
+//        from the Duda content library (the thing this iframe cannot do) and
+//        forwards to that deployment's hb passthrough, which holds the site's
+//        storage key. Groups carry no id upstream — the distinct NAME is the
+//        identity, so names are what the order holds.
+//   GET/POST /api/spacelist/settings — persistence ON THE PROPERTY'S OWN ROW:
+//        Save PATCHes the picked property's PropertiesInternal row, writing
+//        {"groupOrder": [names…]} as JSON into its `config` column (the proxy
+//        adds the column when absent). The dynamic property page binds that
+//        same row, so the widget reads its arrangement with the row it
+//        already has — no extra collection, no extra read.
 //
 // The property is picked FIRST because the widget sits on the DYNAMIC property
 // page: the panel cannot know which property a visit will render, so the
@@ -56,25 +58,39 @@ export interface SpacelistSettingsProps {
 }
 
 interface DemoType { id: string; label: string; key: string; coverage?: boolean }
-interface RosterItem { id: string; name: string }
-interface SpaceGroup { id: string; name: string }
+interface RosterItem { id: string; name: string; spaceGroupId: string; pagePath: string }
+/** A space group as the proxy reduces it: no upstream id, the NAME is the identity. */
+interface SpaceGroup { name: string; tiers: number }
 
 type Loadable<T> =
   | { status: 'loading' }
   | { status: 'ready'; data: T }
   | { status: 'error'; message: string };
 
-/* ── STATIC space groups — demo data shaped like the live /space-groups
-     answer (names from real portfolios; see @shared/spaceGroups). The ids are
-     stable slugs so a saved order survives reloads; they are replaced by the
-     real group ids when the live read returns. ── */
-const GROUPS: SpaceGroup[] = [
-  { id: 'website-group', name: 'Website Group' },
-  { id: 'inside-units', name: 'INSIDE UNITS' },
-  { id: 'high-ceilings', name: 'HIGH CEILINGS' },
-  { id: 'close-to-entrance', name: 'Closet to Office/ Entrance' },
-  { id: 'trade-show-group', name: 'Trade Show Group' },
-];
+/**
+ * The property whose dynamic page this panel was opened on, best-effort.
+ *
+ * Duda appends `page` to the iframe URL ("the same as the page URL"), so on a
+ * dynamic property page it is expected to name the row's path. Matched against
+ * each roster row's own page path — the whole path first, then its unique tail
+ * segment ("storage-outlet-chino-340079518"), so a site base path like
+ * /storage-units/ cannot spoil the match. A roster of one needs no match at
+ * all. No match leaves the dropdown unselected — the editor can always pick
+ * (or switch to) any property by hand.
+ */
+function autoSelect(items: RosterItem[], page: string): string {
+  if (items.length === 1) return items[0].id;
+  const p = page.trim().toLowerCase().replace(/^\/+|\/+$/g, '');
+  if (!p) return '';
+  for (const item of items) {
+    if (!item.pagePath) continue;
+    const tail = item.pagePath.split('/').pop() ?? '';
+    if (p === item.pagePath || p.endsWith(`/${item.pagePath}`) || (tail && (p === tail || p.endsWith(`/${tail}`)))) {
+      return item.id;
+    }
+  }
+  return '';
+}
 
 /* ── Company-tab DEMO catalogue — still static; kept as the design reference. ── */
 const CATALOGUE: DemoType[] = [
@@ -120,43 +136,94 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
             const fields = (row && typeof row.data === 'object' && row.data ? row.data : row) as Record<string, unknown>;
             const id = plainText(fields.id).trim();
             if (!id) return null;
-            return { id, name: plainText(fields.name).trim() || id };
+            return {
+              id,
+              name: plainText(fields.name).trim() || id,
+              // The curated "Website Group" id — see @shared/internalProperties.
+              spaceGroupId: plainText(fields.spaceGroupId).trim(),
+              // The row's dynamic-page path (`state/city/property-name-<id>`),
+              // for matching the page this panel was opened on. Duda keeps it
+              // at ROW level (`page_item_url`); the slug column is the backup.
+              pagePath: (plainText((row as Record<string, unknown>).page_item_url).trim()
+                || plainText(fields.slug).trim()).replace(/^\/+|\/+$/g, '').toLowerCase(),
+            };
           })
           .filter((r): r is RosterItem => r !== null)
           .sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true, sensitivity: 'base' }));
         setRoster({ status: 'ready', data: items });
-        if (items.length === 1) setSelectedId(items[0].id);
+        setSelectedId((already) => already || autoSelect(items, page));
       })
       .catch((err: Error) => { if (!cancelled) setRoster({ status: 'error', message: err.message }); });
     return () => { cancelled = true; };
-  }, [siteId]);
+  }, [siteId, page]);
+
+  const rosterItems = roster.status === 'ready' ? roster.data : [];
+  const selected = rosterItems.find((p) => p.id === selectedId);
 
   /* ── Saved arrangements, read back on load ──────────────────────────────
-     GET /api/spacelist/settings answers every row this instance has saved:
-     `config.properties` maps propertyId → its order. Failing soft here only
-     costs the restored state — the editor can still arrange and save. ── */
+     GET /settings maps property id → the parsed `config` JSON off its row.
+     Failing soft here only costs the restored state. ── */
   const [groupOrders, setGroupOrders] = useState<Record<string, string[]>>({});
   useEffect(() => {
-    if (!siteId || !elementId) return undefined;
+    if (!siteId) return undefined;
     let cancelled = false;
-    fetch(
-      `${PROXY_BASE}/api/spacelist/settings?siteId=${encodeURIComponent(siteId)}&elementId=${encodeURIComponent(elementId)}`,
-      { headers: PROXY_HEADERS },
-    )
+    fetch(`${PROXY_BASE}/api/spacelist/settings?siteId=${encodeURIComponent(siteId)}`, { headers: PROXY_HEADERS })
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json() as Promise<{ config?: { properties?: Record<string, string[]> } | null }>;
+        return res.json() as Promise<{ properties?: Record<string, { groupOrder?: unknown }> }>;
       })
       .then((json) => {
-        if (cancelled || !json.config?.properties) return;
-        setGroupOrders((prev) => ({ ...json.config!.properties, ...prev }));
+        if (cancelled || !json.properties) return;
+        const saved: Record<string, string[]> = {};
+        for (const [pid, cfg] of Object.entries(json.properties)) {
+          if (Array.isArray(cfg?.groupOrder)) saved[pid] = cfg.groupOrder.map(String);
+        }
+        // Local arrangements the editor already made this session win.
+        setGroupOrders((prev) => ({ ...saved, ...prev }));
       })
       .catch((err: Error) => {
         // eslint-disable-next-line no-console
         console.warn('[spacelist-settings] saved settings read failed:', err.message);
       });
     return () => { cancelled = true; };
-  }, [siteId, elementId]);
+  }, [siteId]);
+
+  /* ── The picked property's space groups, live via the proxy ────────────── */
+  const [groups, setGroups] = useState<Loadable<SpaceGroup[]> | null>(null);
+  const groupsCache = useRef(new Map<string, Promise<SpaceGroup[]>>());
+  useEffect(() => {
+    if (!selected) { setGroups(null); return undefined; }
+    if (!selected.spaceGroupId) {
+      setGroups({
+        status: 'error',
+        message: `the ${selected.name} row in PropertiesInternal has no spaceGroupId — fill that column in first`,
+      });
+      return undefined;
+    }
+    let cancelled = false;
+    setGroups({ status: 'loading' });
+    const key = `${selected.id}|${selected.spaceGroupId}`;
+    const cached = groupsCache.current.get(key)
+      ?? fetch(
+        `${PROXY_BASE}/api/spacelist/groups?siteId=${encodeURIComponent(siteId)}`
+        + `&propertyId=${encodeURIComponent(selected.id)}&spaceGroupId=${encodeURIComponent(selected.spaceGroupId)}`,
+        { headers: PROXY_HEADERS },
+      ).then(async (res) => {
+        const json = await res.json().catch(() => undefined) as
+          { ok?: boolean; groups?: SpaceGroup[]; error?: { message?: string } } | undefined;
+        if (!res.ok || !json?.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
+        return json.groups ?? [];
+      });
+    groupsCache.current.set(key, cached);
+    cached
+      .then((list) => { if (!cancelled) setGroups({ status: 'ready', data: list }); })
+      .catch((err: Error) => {
+        if (cancelled) return;
+        groupsCache.current.delete(key); // a failure must not be cached forever
+        setGroups({ status: 'error', message: err.message });
+      });
+    return () => { cancelled = true; };
+  }, [selected, siteId]);
 
   /* ── Drag-to-arrange (shared by the catalogue and the groups list) ─────── */
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -197,45 +264,39 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
   };
 
   /*
-   * Per-property GROUP arrangement — the saved order when there is one, else
-   * the list's own order. A saved order only SORTS the known groups: ids it
-   * does not mention sink to the end (new groups appear rather than vanish),
-   * and ids the list no longer has are ignored by the join below.
+   * Per-property GROUP arrangement — group NAMES, the only identity upstream
+   * provides. The saved order SORTS the live list rather than replacing it:
+   * names it does not mention sink to the end (new groups appear rather than
+   * vanish) and names the property no longer has are ignored by the join.
    */
+  const groupList = groups?.status === 'ready' ? groups.data : [];
   const groupOrder = useMemo(() => {
+    const base = groupList.map((g) => g.name);
     const saved = selectedId ? groupOrders[selectedId] : undefined;
-    const base = GROUPS.map((g) => g.id);
     if (!saved?.length) return base;
-    const rank = new Map(saved.map((id, i) => [id, i]));
+    const rank = new Map(saved.map((name, i) => [name, i]));
     return [...base].sort((a, b) => (rank.get(a) ?? saved.length) - (rank.get(b) ?? saved.length));
-  }, [selectedId, groupOrders]);
+  }, [groupList, selectedId, groupOrders]);
   const orderedGroups = useMemo(
-    () => groupOrder.map((id) => GROUPS.find((g) => g.id === id)).filter((g): g is SpaceGroup => !!g),
-    [groupOrder],
+    () => groupOrder.map((name) => groupList.find((g) => g.name === name)).filter((g): g is SpaceGroup => !!g),
+    [groupOrder, groupList],
   );
-  const moveOverGroup = (overId: string) => {
+  const moveOverGroup = (overName: string) => {
     const from = dragId.current;
-    if (!from || from === overId || !selectedId) return;
+    if (!from || from === overName || !selectedId) return;
     const pid = selectedId;
-    setGroupOrders((prev) => ({ ...prev, [pid]: reorder(prev[pid] ?? groupOrder, from, overId) }));
+    setGroupOrders((prev) => ({ ...prev, [pid]: reorder(prev[pid] ?? groupOrder, from, overName) }));
   };
 
-  const rosterItems = roster.status === 'ready' ? roster.data : [];
-  const selected = rosterItems.find((p) => p.id === selectedId);
-
-  /* ── Save — writes THIS property's arrangement to the spacelistConfig
-       collection (one row per instanceKey + propertyId; other properties'
-       rows are untouched by design, see the proxy route). ── */
+  /* ── Save — PATCHes the picked property's PropertiesInternal row:
+       config = {"groupOrder": [names…]} as JSON. ── */
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [saveError, setSaveError] = useState('');
   const onSave = () => {
     if (!selectedId || saveState === 'saving') return;
-    const payload = {
-      elementId,
-      orders: [{ propertyId: selectedId, order: orderedGroups.map((g) => g.id) }],
-    };
+    const payload = { propertyId: selectedId, order: orderedGroups.map((g) => g.name) };
     // eslint-disable-next-line no-console
-    console.log('[spacelist-settings] SAVE', { siteId, instanceKey: `${siteId}_${elementId}`, propertyName: selected?.name, ...payload });
+    console.log('[spacelist-settings] SAVE', { siteId, propertyName: selected?.name, ...payload });
     setSaveState('saving');
     setSaveError('');
     fetch(`${PROXY_BASE}/api/spacelist/settings?siteId=${encodeURIComponent(siteId)}`, {
@@ -245,7 +306,7 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
     })
       .then(async (res) => {
         const json = await res.json().catch(() => undefined) as
-          { ok?: boolean; created?: number; updated?: number; error?: { message?: string } } | undefined;
+          { ok?: boolean; config?: unknown; error?: { message?: string } } | undefined;
         if (!res.ok || !json?.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
         // eslint-disable-next-line no-console
         console.log('[spacelist-settings] SAVED', json);
@@ -289,6 +350,29 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
         <div className="sos-state sos-state--error" role="alert">Could not load properties: {roster.message}</div>
       )}
     </div>
+  );
+
+  const groupRows = (sortable: boolean) => (
+    !selectedId ? <div className="sos-state">Pick a property to see its space groups.</div>
+      : !groups || groups.status !== 'ready' ? (groups && stateLine(groups, 'space groups'))
+        : !groups.data.length ? <div className="sos-state">This property has no space groups.</div>
+          : (
+            <div className="sos-rows">
+              {(sortable ? orderedGroups : groups.data).map((g) => (
+                <div
+                  className={`sos-row${sortable ? ' sos-row--draggable' : ''}${draggingId === g.name ? ' sos-row--dragging' : ''}`}
+                  key={g.name}
+                  {...(sortable ? dragProps(g.name, moveOverGroup) : {})}
+                >
+                  {sortable && <span className="sos-grip" aria-hidden="true">⠿</span>}
+                  <div className="sos-name">
+                    {g.name}
+                    <small>{g.tiers} tier{g.tiers === 1 ? '' : 's'}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
   );
 
   return (
@@ -350,17 +434,11 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
           <div className="sos-card">
             <h2>Space groups</h2>
             <p className="sos-sub">
-              Each property sells its units through one of several groups — only the
-              “Website Group” is the public list. (Demo data until the live read is wired.)
+              The picked property’s groups, live from Hummingbird through the site’s own
+              hb proxy (the row’s <code>spaceGroupId</code> names its public “Website Group”).
             </p>
-            <div className="sos-rows">
-              {GROUPS.map((g) => (
-                <div className="sos-row" key={g.id}>
-                  <div className="sos-name">{g.name}</div>
-                  {/website/i.test(g.name) && <span className="sos-badge sos-badge--public">public unit list</span>}
-                </div>
-              ))}
-            </div>
+            {propertyPicker('sos-group')}
+            {groupRows(false)}
           </div>
         </section>
       )}
@@ -371,32 +449,11 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
             <h2>Space groups at this property</h2>
             <p className="sos-sub">
               The widget sits on the dynamic property page, so pick the property first,
-              then drag its groups into order. Save writes THIS property’s order to the
-              site’s <code>spacelistConfig</code> collection. (Group names are demo data
-              until the live read is wired — the saved order is real.)
+              then drag its groups into order. Save writes the order as JSON into the
+              property’s own <code>config</code> column on <code>PropertiesInternal</code>.
             </p>
             {propertyPicker('sos-property')}
-            {!selectedId ? (
-              roster.status === 'loading'
-                ? stateLine(roster, 'properties')
-                : roster.status === 'ready'
-                  ? <div className="sos-state">Pick a property to arrange its space groups.</div>
-                  : null
-            ) : (
-              <div className="sos-rows">
-                {orderedGroups.map((g) => (
-                  <div
-                    className={`sos-row sos-row--draggable${draggingId === g.id ? ' sos-row--dragging' : ''}`}
-                    key={g.id}
-                    {...dragProps(g.id, moveOverGroup)}
-                  >
-                    <span className="sos-grip" aria-hidden="true">⠿</span>
-                    <div className="sos-name">{g.name}</div>
-                    {/website/i.test(g.name) && <span className="sos-badge sos-badge--public">public unit list</span>}
-                  </div>
-                ))}
-              </div>
-            )}
+            {groupRows(true)}
             <div className="sos-actions">
               {saveState === 'error' && (
                 <span className="sos-state sos-state--error" role="alert">Save failed: {saveError}</span>
@@ -405,7 +462,7 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
               <button
                 type="button"
                 className="sos-save"
-                disabled={!selectedId || saveState === 'saving'}
+                disabled={!selectedId || groups?.status !== 'ready' || saveState === 'saving'}
                 onClick={onSave}
               >
                 {saveState === 'saving' ? 'Saving…' : 'Save'}
