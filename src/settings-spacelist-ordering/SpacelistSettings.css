@@ -79,6 +79,12 @@
 }
 .sos-badge--public { background: #def7ec; color: #046c4e; }
 
+/* ── Drag-to-arrange (the catalogue) ── */
+.sos-row--draggable { cursor: grab; user-select: none; }
+.sos-row--draggable:active { cursor: grabbing; }
+.sos-row--dragging { opacity: .45; border-style: dashed; }
+.sos-grip { color: var(--quiet); font-size: 14px; line-height: 1; letter-spacing: -2px; }
+
 .sos-count-line { font-size: 13px; color: var(--slate); margin: 0 0 10px; }
 .sos-count-line b { color: var(--night); }
 

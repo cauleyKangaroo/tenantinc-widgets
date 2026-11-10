@@ -39,7 +39,7 @@
 // the live wiring.
 // ===========================================================================
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import './SpacelistSettings.css';
 
 export interface SpacelistSettingsProps {
@@ -108,6 +108,37 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
   const selected = PROPERTIES.find((p) => p.id === selectedId);
   const typeById = useMemo(() => new Map(CATALOGUE.map((t) => [t.id, t])), []);
 
+  /*
+   * THE ORDER is the panel's actual product — this widget exists to let the
+   * editor arrange the space types. Held as a list of catalogue ids; the
+   * Property tab prints its counts in this same order, so what the editor
+   * arranges here is exactly what the page will render. Drag & drop works in
+   * this iframe (the CLAUDE.md caveat about dragging inside the Duda editor is
+   * about widgets on the page canvas, which drag the whole widget — this panel
+   * is our own document). Reordered on dragover, not on drop, so the list
+   * previews the result while the row is still in hand.
+   */
+  const [typeOrder, setTypeOrder] = useState<string[]>(() => CATALOGUE.map((t) => t.id));
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const dragId = useRef<string | null>(null);
+  const orderedCatalogue = useMemo(
+    () => typeOrder.map((id) => typeById.get(id)).filter((t): t is DemoType => !!t),
+    [typeOrder, typeById],
+  );
+  const moveOver = (overId: string) => {
+    const from = dragId.current;
+    if (!from || from === overId) return;
+    setTypeOrder((order) => {
+      const fromIdx = order.indexOf(from);
+      const overIdx = order.indexOf(overId);
+      if (fromIdx < 0 || overIdx < 0 || fromIdx === overIdx) return order;
+      const next = [...order];
+      next.splice(fromIdx, 1);
+      next.splice(overIdx, 0, from);
+      return next;
+    });
+  };
+
   const propertyPicker = (idPrefix: string) => (
     <div className="sos-picker">
       <label htmlFor={`${idPrefix}-prop`}>
@@ -150,24 +181,29 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
       {tab === 'company' && (
         <section className="sos-panel" role="tabpanel">
           <div className="sos-card">
-            <h2>Company</h2>
-            <p className="sos-sub">The company every request on this site is scoped to.</p>
-            <div className="sos-rows">
-              <div className="sos-row">
-                <div className="sos-name">
-                  {siteId ? `Company of site ${siteId}` : 'Demo Storage Co.'}
-                  <small>{PROPERTIES.length} properties on this site</small>
-                </div>
-                <span className="sos-badge">demo data</span>
-              </div>
-            </div>
-          </div>
-          <div className="sos-card">
             <h2>Space type catalogue</h2>
-            <p className="sos-sub">Every space type this company can sell. Which of these a property actually offers is on the Property tab.</p>
+            <p className="sos-sub">
+              Every space type this company can sell — drag to arrange them. The Property tab
+              (and the page) lists a property’s types in this order.
+            </p>
             <div className="sos-rows">
-              {CATALOGUE.map((t) => (
-                <div className="sos-row" key={t.id}>
+              {orderedCatalogue.map((t) => (
+                <div
+                  className={`sos-row sos-row--draggable${draggingId === t.id ? ' sos-row--dragging' : ''}`}
+                  key={t.id}
+                  draggable
+                  onDragStart={(e) => {
+                    dragId.current = t.id;
+                    setDraggingId(t.id);
+                    // Firefox refuses to start a drag with no data attached.
+                    e.dataTransfer.setData('text/plain', t.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => { e.preventDefault(); moveOver(t.id); }}
+                  onDrop={(e) => e.preventDefault()}
+                  onDragEnd={() => { dragId.current = null; setDraggingId(null); }}
+                >
+                  <span className="sos-grip" aria-hidden="true">⠿</span>
                   <div className="sos-name">
                     {t.label}
                     <small>{t.key}</small>
@@ -216,7 +252,11 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
                   {' '}<span className="sos-badge">demo data</span>
                 </p>
                 <div className="sos-rows">
-                  {selected.counts.map((c) => {
+                  {/* The catalogue's arranged order, applied — what the editor
+                      drags on the Company tab is what a property page shows. */}
+                  {[...selected.counts]
+                    .sort((a, b) => typeOrder.indexOf(a.typeId) - typeOrder.indexOf(b.typeId))
+                    .map((c) => {
                     const t = typeById.get(c.typeId);
                     return (
                       <div className="sos-row" key={c.typeId}>
