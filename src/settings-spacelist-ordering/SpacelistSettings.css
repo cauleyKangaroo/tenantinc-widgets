@@ -100,7 +100,9 @@
 @keyframes sos-spin { to { transform: rotate(360deg); } }
 
 /* ── Save (Property tab) ── */
-.sos-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+.sos-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 14px; }
+.sos-actions .sos-state { padding: 0; }
+.sos-saved { font-size: 13px; font-weight: 600; color: #046c4e; }
 .sos-save {
   font: inherit; font-weight: 600; font-size: 13px;
   padding: 9px 26px; border-radius: 999px; border: none;

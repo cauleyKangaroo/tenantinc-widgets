@@ -12,25 +12,26 @@
 // the widget's page JS receives the same data.elementId/data.siteId to read
 // them back. The shell forwards those params here as props.
 //
-// DATA — the tenant-proxy (branch feat/spacelist-settings):
-//   GET {PROXY}/api/spacelist/rows?siteId=…
-//     The property roster: the site's own `PropertiesInternal` rows, the same
-//     ones the dynamic property pages are built from. The panel cannot read
-//     them itself (no dmAPI outside a published page; Duda's REST read needs
-//     credentials), so the proxy reads them with its Duda creds.
-//   GET {PROXY}/api/hb/v2/properties/{pid}/space-groups?siteId=…
-//     The picked property's space groups, live from Hummingbird — the proxy
-//     resolves the site's company/application/key server-side.
-//   POST {PROXY}/api/spacelist/settings   ← Save; NOT wired yet. The button
-//     console.logs its exact payload for now, so the save shape can be agreed
-//     on before anything writes.
+// WHAT IS LIVE vs STATIC right now:
+//   LIVE — the property roster (GET {PROXY}/api/spacelist/rows: the site's
+//     own `PropertiesInternal` rows, the same ones the dynamic property pages
+//     are built from), and PERSISTENCE: Save writes the picked property's
+//     group order to the `spacelistConfig` collection
+//     (POST {PROXY}/api/spacelist/settings, one row per instanceKey +
+//     propertyId), and the panel reads every saved arrangement back on load
+//     (GET …/settings).
+//   STATIC — the space-group list itself (and the Company tab's catalogue):
+//     the live hb read is parked until the proxy has a storage key the
+//     gateway accepts; the list below is demo data shaped like the real
+//     /space-groups answer. The ORDER the editor arranges is what persists,
+//     so swapping the list for the live one later changes no save shape.
 //
 // The property is picked FIRST because the widget sits on the DYNAMIC property
 // page: the panel cannot know which property a visit will render, so the
 // arrangement is per property.
 // ===========================================================================
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { plainText } from '@shared/dudaCollections';
 import './SpacelistSettings.css';
 
@@ -63,8 +64,19 @@ type Loadable<T> =
   | { status: 'ready'; data: T }
   | { status: 'error'; message: string };
 
-/* ── Company-tab DEMO catalogue — still static; the live company data comes
-     later, with Save. Kept drag-sortable as the design reference. ── */
+/* ── STATIC space groups — demo data shaped like the live /space-groups
+     answer (names from real portfolios; see @shared/spaceGroups). The ids are
+     stable slugs so a saved order survives reloads; they are replaced by the
+     real group ids when the live read returns. ── */
+const GROUPS: SpaceGroup[] = [
+  { id: 'website-group', name: 'Website Group' },
+  { id: 'inside-units', name: 'INSIDE UNITS' },
+  { id: 'high-ceilings', name: 'HIGH CEILINGS' },
+  { id: 'close-to-entrance', name: 'Closet to Office/ Entrance' },
+  { id: 'trade-show-group', name: 'Trade Show Group' },
+];
+
+/* ── Company-tab DEMO catalogue — still static; kept as the design reference. ── */
 const CATALOGUE: DemoType[] = [
   { id: 'T1', label: 'Storage', key: 'storage', coverage: true },
   { id: 'T2', label: 'Parking', key: 'parking' },
@@ -119,44 +131,32 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
     return () => { cancelled = true; };
   }, [siteId]);
 
-  /* ── The picked property's space groups, live via the hb passthrough ───── */
-  const [groups, setGroups] = useState<Loadable<SpaceGroup[]> | null>(null);
-  const groupsCache = useRef(new Map<string, Promise<SpaceGroup[]>>());
-  const fetchGroups = useCallback((pid: string): Promise<SpaceGroup[]> => {
-    const url = `${PROXY_BASE}/api/hb/v2/properties/${encodeURIComponent(pid)}/space-groups?siteId=${encodeURIComponent(siteId)}`;
-    return fetch(url, { headers: PROXY_HEADERS })
-      .then(async (res) => {
-        const json = await res.json().catch(() => undefined) as
-          { applicationData?: Record<string, Array<{ status?: number; msg?: string; data?: { spaceGroups?: Array<{ id?: string; name?: string }> } }>> } | undefined;
-        // The gateway's envelope comes back verbatim; unwrap by FIRST key — the
-        // panel has no reason to know the site's application id.
-        const apps = json?.applicationData;
-        const firstKey = apps && Object.keys(apps)[0];
-        const inner = firstKey ? apps[firstKey]?.[0] : undefined;
-        if (!res.ok || !inner || (inner.status && inner.status !== 200)) {
-          throw new Error(`API status ${inner?.status ?? res.status}${inner?.msg ? ` — ${inner.msg}` : ''}`);
-        }
-        return (inner.data?.spaceGroups ?? [])
-          .map((g) => ({ id: String(g.id ?? ''), name: String(g.name ?? '') }))
-          .filter((g) => g.id);
-      });
-  }, [siteId]);
-
+  /* ── Saved arrangements, read back on load ──────────────────────────────
+     GET /api/spacelist/settings answers every row this instance has saved:
+     `config.properties` maps propertyId → its order. Failing soft here only
+     costs the restored state — the editor can still arrange and save. ── */
+  const [groupOrders, setGroupOrders] = useState<Record<string, string[]>>({});
   useEffect(() => {
-    if (!selectedId) { setGroups(null); return undefined; }
+    if (!siteId || !elementId) return undefined;
     let cancelled = false;
-    setGroups({ status: 'loading' });
-    const cached = groupsCache.current.get(selectedId) ?? fetchGroups(selectedId);
-    groupsCache.current.set(selectedId, cached);
-    cached
-      .then((list) => { if (!cancelled) setGroups({ status: 'ready', data: list }); })
+    fetch(
+      `${PROXY_BASE}/api/spacelist/settings?siteId=${encodeURIComponent(siteId)}&elementId=${encodeURIComponent(elementId)}`,
+      { headers: PROXY_HEADERS },
+    )
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json() as Promise<{ config?: { properties?: Record<string, string[]> } | null }>;
+      })
+      .then((json) => {
+        if (cancelled || !json.config?.properties) return;
+        setGroupOrders((prev) => ({ ...json.config!.properties, ...prev }));
+      })
       .catch((err: Error) => {
-        if (cancelled) return;
-        groupsCache.current.delete(selectedId); // a failure must not be cached forever
-        setGroups({ status: 'error', message: err.message });
+        // eslint-disable-next-line no-console
+        console.warn('[spacelist-settings] saved settings read failed:', err.message);
       });
     return () => { cancelled = true; };
-  }, [selectedId, fetchGroups]);
+  }, [siteId, elementId]);
 
   /* ── Drag-to-arrange (shared by the catalogue and the groups list) ─────── */
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -197,40 +197,67 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
   };
 
   /*
-   * Per-property GROUP arrangement — seeded from the API's order when the
-   * groups land, independent after. `{ propertyId, order }` is what Save will
-   * persist; for now the button console.logs exactly that payload.
+   * Per-property GROUP arrangement — the saved order when there is one, else
+   * the list's own order. A saved order only SORTS the known groups: ids it
+   * does not mention sink to the end (new groups appear rather than vanish),
+   * and ids the list no longer has are ignored by the join below.
    */
-  const [groupOrders, setGroupOrders] = useState<Record<string, string[]>>({});
-  const groupList = groups?.status === 'ready' ? groups.data : [];
-  const groupOrder = (selectedId && groupOrders[selectedId]) || groupList.map((g) => g.id);
+  const groupOrder = useMemo(() => {
+    const saved = selectedId ? groupOrders[selectedId] : undefined;
+    const base = GROUPS.map((g) => g.id);
+    if (!saved?.length) return base;
+    const rank = new Map(saved.map((id, i) => [id, i]));
+    return [...base].sort((a, b) => (rank.get(a) ?? saved.length) - (rank.get(b) ?? saved.length));
+  }, [selectedId, groupOrders]);
   const orderedGroups = useMemo(
-    () => groupOrder.map((id) => groupList.find((g) => g.id === id)).filter((g): g is SpaceGroup => !!g),
-    [groupOrder, groupList],
+    () => groupOrder.map((id) => GROUPS.find((g) => g.id === id)).filter((g): g is SpaceGroup => !!g),
+    [groupOrder],
   );
   const moveOverGroup = (overId: string) => {
     const from = dragId.current;
     if (!from || from === overId || !selectedId) return;
     const pid = selectedId;
-    const seed = groupList.map((g) => g.id);
-    setGroupOrders((prev) => ({ ...prev, [pid]: reorder(prev[pid] ?? seed, from, overId) }));
+    setGroupOrders((prev) => ({ ...prev, [pid]: reorder(prev[pid] ?? groupOrder, from, overId) }));
   };
 
   const rosterItems = roster.status === 'ready' ? roster.data : [];
   const selected = rosterItems.find((p) => p.id === selectedId);
 
+  /* ── Save — writes THIS property's arrangement to the spacelistConfig
+       collection (one row per instanceKey + propertyId; other properties'
+       rows are untouched by design, see the proxy route). ── */
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [saveError, setSaveError] = useState('');
   const onSave = () => {
+    if (!selectedId || saveState === 'saving') return;
     const payload = {
-      siteId,
       elementId,
-      instanceKey: `${siteId}_${elementId}`,
-      propertyId: selectedId,
-      propertyName: selected?.name,
-      order: orderedGroups.map((g) => g.id),
-      groups: orderedGroups.map((g) => ({ id: g.id, name: g.name })),
+      orders: [{ propertyId: selectedId, order: orderedGroups.map((g) => g.id) }],
     };
     // eslint-disable-next-line no-console
-    console.log('[spacelist-settings] SAVE', payload);
+    console.log('[spacelist-settings] SAVE', { siteId, instanceKey: `${siteId}_${elementId}`, propertyName: selected?.name, ...payload });
+    setSaveState('saving');
+    setSaveError('');
+    fetch(`${PROXY_BASE}/api/spacelist/settings?siteId=${encodeURIComponent(siteId)}`, {
+      method: 'POST',
+      headers: { ...PROXY_HEADERS, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(async (res) => {
+        const json = await res.json().catch(() => undefined) as
+          { ok?: boolean; created?: number; updated?: number; error?: { message?: string } } | undefined;
+        if (!res.ok || !json?.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
+        // eslint-disable-next-line no-console
+        console.log('[spacelist-settings] SAVED', json);
+        setSaveState('saved');
+        window.setTimeout(() => setSaveState((s) => (s === 'saved' ? 'idle' : s)), 2500);
+      })
+      .catch((err: Error) => {
+        // eslint-disable-next-line no-console
+        console.error('[spacelist-settings] save failed:', err.message);
+        setSaveState('error');
+        setSaveError(err.message);
+      });
   };
 
   const stateLine = (l: { status: 'loading' } | { status: 'error'; message: string }, what: string) => (
@@ -262,27 +289,6 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
         <div className="sos-state sos-state--error" role="alert">Could not load properties: {roster.message}</div>
       )}
     </div>
-  );
-
-  const groupRows = (sortable: boolean) => (
-    !selectedId ? <div className="sos-state">Pick a property to see its space groups.</div>
-      : !groups || groups.status !== 'ready' ? (groups && stateLine(groups, 'space groups'))
-        : !groups.data.length ? <div className="sos-state">This property has no space groups.</div>
-          : (
-            <div className="sos-rows">
-              {(sortable ? orderedGroups : groups.data).map((g) => (
-                <div
-                  className={`sos-row${sortable ? ' sos-row--draggable' : ''}${draggingId === g.id ? ' sos-row--dragging' : ''}`}
-                  key={g.id}
-                  {...(sortable ? dragProps(g.id, moveOverGroup) : {})}
-                >
-                  {sortable && <span className="sos-grip" aria-hidden="true">⠿</span>}
-                  <div className="sos-name">{g.name || g.id}</div>
-                  {/website/i.test(g.name) && <span className="sos-badge sos-badge--public">public unit list</span>}
-                </div>
-              ))}
-            </div>
-          )
   );
 
   return (
@@ -343,9 +349,18 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
         <section className="sos-panel" role="tabpanel">
           <div className="sos-card">
             <h2>Space groups</h2>
-            <p className="sos-sub">Each property sells its units through one of several groups — only the “Website Group” is the public list.</p>
-            {propertyPicker('sos-group')}
-            {groupRows(false)}
+            <p className="sos-sub">
+              Each property sells its units through one of several groups — only the
+              “Website Group” is the public list. (Demo data until the live read is wired.)
+            </p>
+            <div className="sos-rows">
+              {GROUPS.map((g) => (
+                <div className="sos-row" key={g.id}>
+                  <div className="sos-name">{g.name}</div>
+                  {/website/i.test(g.name) && <span className="sos-badge sos-badge--public">public unit list</span>}
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       )}
@@ -355,19 +370,45 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
           <div className="sos-card">
             <h2>Space groups at this property</h2>
             <p className="sos-sub">
-              The widget sits on the dynamic property page, so pick the property first —
-              these are its space groups, live from Hummingbird. Drag to arrange them.
+              The widget sits on the dynamic property page, so pick the property first,
+              then drag its groups into order. Save writes THIS property’s order to the
+              site’s <code>spacelistConfig</code> collection. (Group names are demo data
+              until the live read is wired — the saved order is real.)
             </p>
             {propertyPicker('sos-property')}
-            {groupRows(true)}
+            {!selectedId ? (
+              roster.status === 'loading'
+                ? stateLine(roster, 'properties')
+                : roster.status === 'ready'
+                  ? <div className="sos-state">Pick a property to arrange its space groups.</div>
+                  : null
+            ) : (
+              <div className="sos-rows">
+                {orderedGroups.map((g) => (
+                  <div
+                    className={`sos-row sos-row--draggable${draggingId === g.id ? ' sos-row--dragging' : ''}`}
+                    key={g.id}
+                    {...dragProps(g.id, moveOverGroup)}
+                  >
+                    <span className="sos-grip" aria-hidden="true">⠿</span>
+                    <div className="sos-name">{g.name}</div>
+                    {/website/i.test(g.name) && <span className="sos-badge sos-badge--public">public unit list</span>}
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="sos-actions">
+              {saveState === 'error' && (
+                <span className="sos-state sos-state--error" role="alert">Save failed: {saveError}</span>
+              )}
+              {saveState === 'saved' && <span className="sos-saved" role="status">Saved ✓</span>}
               <button
                 type="button"
                 className="sos-save"
-                disabled={!selectedId || groups?.status !== 'ready'}
+                disabled={!selectedId || saveState === 'saving'}
                 onClick={onSave}
               >
-                Save
+                {saveState === 'saving' ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
