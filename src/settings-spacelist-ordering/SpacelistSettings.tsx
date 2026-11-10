@@ -119,25 +119,62 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
    * previews the result while the row is still in hand.
    */
   const [typeOrder, setTypeOrder] = useState<string[]>(() => CATALOGUE.map((t) => t.id));
+  /*
+   * PER-PROPERTY overrides. The catalogue order is the company-wide default;
+   * dragging on the Property tab arranges THAT property only — seeded from the
+   * default on first touch, independent after. `{ propertyId, order }` pairs
+   * are what Save will persist alongside the default.
+   */
+  const [propertyOrders, setPropertyOrders] = useState<Record<string, string[]>>({});
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const dragId = useRef<string | null>(null);
   const orderedCatalogue = useMemo(
     () => typeOrder.map((id) => typeById.get(id)).filter((t): t is DemoType => !!t),
     [typeOrder, typeById],
   );
+
+  const reorder = (order: string[], from: string, overId: string): string[] => {
+    const fromIdx = order.indexOf(from);
+    const overIdx = order.indexOf(overId);
+    if (fromIdx < 0 || overIdx < 0 || fromIdx === overIdx) return order;
+    const next = [...order];
+    next.splice(fromIdx, 1);
+    next.splice(overIdx, 0, from);
+    return next;
+  };
   const moveOver = (overId: string) => {
     const from = dragId.current;
     if (!from || from === overId) return;
-    setTypeOrder((order) => {
-      const fromIdx = order.indexOf(from);
-      const overIdx = order.indexOf(overId);
-      if (fromIdx < 0 || overIdx < 0 || fromIdx === overIdx) return order;
-      const next = [...order];
-      next.splice(fromIdx, 1);
-      next.splice(overIdx, 0, from);
-      return next;
-    });
+    setTypeOrder((order) => reorder(order, from, overId));
   };
+  const moveOverProperty = (overId: string) => {
+    const from = dragId.current;
+    if (!from || from === overId || !selected) return;
+    const pid = selected.id;
+    setPropertyOrders((prev) => ({
+      ...prev,
+      // First touch seeds from the company default, so the drag starts from
+      // exactly what the list was showing.
+      [pid]: reorder(prev[pid] ?? typeOrder, from, overId),
+    }));
+  };
+  /** The picked property's order: its own arrangement, else the default. */
+  const effectiveOrder = (selected && propertyOrders[selected.id]) || typeOrder;
+
+  /** The shared drag props — one drag at a time, whichever list it is in. */
+  const dragProps = (id: string, onOver: (overId: string) => void) => ({
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => {
+      dragId.current = id;
+      setDraggingId(id);
+      // Firefox refuses to start a drag with no data attached.
+      e.dataTransfer.setData('text/plain', id);
+      e.dataTransfer.effectAllowed = 'move' as const;
+    },
+    onDragOver: (e: React.DragEvent) => { e.preventDefault(); onOver(id); },
+    onDrop: (e: React.DragEvent) => e.preventDefault(),
+    onDragEnd: () => { dragId.current = null; setDraggingId(null); },
+  });
 
   const propertyPicker = (idPrefix: string) => (
     <div className="sos-picker">
@@ -191,17 +228,7 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
                 <div
                   className={`sos-row sos-row--draggable${draggingId === t.id ? ' sos-row--dragging' : ''}`}
                   key={t.id}
-                  draggable
-                  onDragStart={(e) => {
-                    dragId.current = t.id;
-                    setDraggingId(t.id);
-                    // Firefox refuses to start a drag with no data attached.
-                    e.dataTransfer.setData('text/plain', t.id);
-                    e.dataTransfer.effectAllowed = 'move';
-                  }}
-                  onDragOver={(e) => { e.preventDefault(); moveOver(t.id); }}
-                  onDrop={(e) => e.preventDefault()}
-                  onDragEnd={() => { dragId.current = null; setDraggingId(null); }}
+                  {...dragProps(t.id, moveOver)}
                 >
                   <span className="sos-grip" aria-hidden="true">⠿</span>
                   <div className="sos-name">
@@ -242,7 +269,8 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
             <h2>Storage types at this property</h2>
             <p className="sos-sub">
               The widget sits on the dynamic property page, so pick the property first —
-              these are the storage types it offers.
+              these are the storage types it offers. Drag to arrange them for this
+              property; it starts from the catalogue’s order and overrides it.
             </p>
             {propertyPicker('sos-property')}
             {!selected ? <div className="sos-state">Pick a property to see its storage types.</div> : (
@@ -252,14 +280,19 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
                   {' '}<span className="sos-badge">demo data</span>
                 </p>
                 <div className="sos-rows">
-                  {/* The catalogue's arranged order, applied — what the editor
-                      drags on the Company tab is what a property page shows. */}
+                  {/* This property's own arrangement when it has one, else the
+                      catalogue's — dragging here writes the per-property order. */}
                   {[...selected.counts]
-                    .sort((a, b) => typeOrder.indexOf(a.typeId) - typeOrder.indexOf(b.typeId))
+                    .sort((a, b) => effectiveOrder.indexOf(a.typeId) - effectiveOrder.indexOf(b.typeId))
                     .map((c) => {
                     const t = typeById.get(c.typeId);
                     return (
-                      <div className="sos-row" key={c.typeId}>
+                      <div
+                        className={`sos-row sos-row--draggable${draggingId === c.typeId ? ' sos-row--dragging' : ''}`}
+                        key={c.typeId}
+                        {...dragProps(c.typeId, moveOverProperty)}
+                      >
+                        <span className="sos-grip" aria-hidden="true">⠿</span>
                         <div className="sos-name">
                           {t?.label ?? c.typeId}
                           <small>{t?.key ?? ''}</small>
