@@ -5,10 +5,10 @@ import { TickSingleIcon, AlertTriangleIcon } from './planIcons';
 
 // The card titles (here, IdvDetails, SuccessStep) are <h3> for their styling
 // but sit straight under the page's <h1>; aria-level={2} closes the skip.
-export function IdvCardTitle({ id, required = false }: { id?: string; required?: boolean }) {
+export function IdvCardTitle({ id, required = false, title = 'Renter Identity Verification' }: { id?: string; required?: boolean; title?: string }) {
   return (
     <h3 aria-level={2} id={id} className="rf-sx-idv-title">
-      Renter Identity Verification{required && <span className="rf-idd-req" aria-hidden="true"> *</span>}
+      {title}{required && <span className="rf-idd-req" aria-hidden="true"> *</span>}
     </h3>
   );
 }

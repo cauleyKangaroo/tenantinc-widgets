@@ -6,6 +6,7 @@ import type { IdvRequirement } from './idvPolicy';
 import { useIdvController } from './useIdvController';
 import { IdvCardTitle, IdvPopupNote, IdvCompleteTitle, IdvAddressNotice, IdvFailedContent, IdvLaterContent } from './IdvStatus';
 import { IdVerifyModal } from './IdVerifyModal';
+import { IdIllustration } from './IdIllustration';
 import { isRawIdvId } from './idvLinking';
 import {
   MailingAddressReadout, MailingAddressFields, LicenceReadout, LicenceFields, EMPTY_MAILING, EMPTY_LICENCE,
@@ -214,17 +215,18 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
       ) : deferred ? (
         <IdvLaterContent id={titleId} onVerifyNow={() => setLater(false)} />
       ) : (
-        <IdvCardTitle id={titleId} required={config.requirement === 'required'} />
+        <IdvCardTitle id={titleId} required={config.requirement === 'required'} title="ID Verification" />
       )}
       {!validCompletion && !failedCheck && !needsAssistance && !deferred && (
       <div className="rf-sx-idv-body">
+        <IdIllustration />
         <div className="rf-sx-idv-actions">
           {!identity ? (
-            <Button tone="secondary" className="rf-sx-btn" disabled={!valid || preparing || config.policyPending || config.requirement === 'disabled' || !config.scope.companyId || !config.scope.propertyId} onClick={() => void prepare()}>
+            <Button tone="secondary" className="rf-sx-btn rf2-idv-primary" disabled={!valid || preparing || config.policyPending || config.requirement === 'disabled' || !config.scope.companyId || !config.scope.propertyId} onClick={() => void prepare()}>
               {preparing ? 'Preparing Verification…' : 'Verify ID Now'}
             </Button>
           ) : kind === 'complete' ? null
-            : kind === 'ready' ? <Button tone="secondary" className="rf-sx-btn" onClick={() => {
+            : kind === 'ready' ? <Button tone="secondary" className="rf-sx-btn rf2-idv-primary" onClick={() => {
               if (!handheld) setHandoffOpen(true);
               void controller.start();
             }}>Verify ID Now</Button>
@@ -239,7 +241,7 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
                 <Button tone="dark" fill="outline" className="rf-sx-btn" onClick={controller.retry}>Try Again</Button>
               </> : <p role="status">{kind === 'starting' ? 'Starting Verification…' : 'Checking Verification…'}</p>}
           {config.requirement === 'optional' && kind !== 'complete' && !config.policyPending && (
-            <Button tone="dark" fill="outline" className="rf-sx-btn" disabled={!canDefer} onClick={() => {
+            <Button tone="secondary" fill="outline" className="rf-sx-btn rf2-idv-primary" disabled={!canDefer} onClick={() => {
               autoStart.current = false;
               leadRequest.current?.abort();
               closeVerificationPlaceholder(preparedWindow.current);
