@@ -422,6 +422,10 @@
 /* The 1-step card's "Verify ID Now" is the kit <Button>, so it gets the same
    site PRIMARY by retoning the kit's own variables — its hover, press and
    disabled rules then follow without separate overrides. */
+/* 1-step in-store card: centred "Changed your mind?" over the button, and the
+   phone as a plain underlined number. */
+.rf2-idv-aside .rf-sx-idv-strong { font-size: 16px; text-align: center; }
+.rf-sx-idv-link.rf2-idv-phone { font-size: 14px; font-weight: 400; text-decoration: underline; }
 .hb-btn.rf2-idv-primary {
   --hb-btn-tone: var(--color_1, #10666d);
   --hb-btn-tone-hover: color-mix(in srgb, var(--color_1, #10666d) 88%, #000);
