@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space List Ordering — Settings</title>
+<!-- ===========================================================================
+  The SHELL for the Widget Builder's "Embed your own external widget settings"
+  (Spacelist-Ordering widget). Duda can only iframe a PAGE, not a bare .js —
+  this is that page, and nothing more: all UI lives in the React bundle
+  (settings-spacelist-ordering.js), loaded from RIGHT NEXT to this file the way
+  the dev harness loads every widget — require.js, then init({container, props}).
+
+  EMITTED INTO dist/ BY THE BUILD (see webpack.config.js), so it ships beside
+  the bundle and the embed URL is the same family as every widget URL:
+      https://cauleykangaroo.github.io/tenantinc-widgets/dist/spacelist-ordering-settings.html
+  No query params needed — Duda appends the instance itself:
+      ?siteId=…&elementId=…&widgetId=…&page=…&locale=…&version=…
+  (https://developer.duda.co/docs/iframed-configuration). This file is NOT the
+  one to edit in dist/: the source lives at
+  src/settings-spacelist-ordering/shell.html.
+
+  There is NO postMessage/data.config bridge for this input type: settings are
+  stored in OUR backend keyed by `{siteId}_{elementId}` and the widget's page
+  JS reads them back with the same data.siteId/data.elementId.
+=========================================================================== -->
+<style>
+  html, body { margin: 0; padding: 0; background: #fff; }
+  #boot-error {
+    font-family: system-ui, sans-serif; font-size: 13px; color: #c81e1e;
+    padding: 20px; display: none;
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<p id="boot-error"></p>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  // Duda's own iframe params, forwarded to the app as props.
+  var qs = new URLSearchParams(location.search);
+  var props = {};
+  ['siteId', 'elementId', 'widgetId', 'page', 'locale'].forEach(function (k) {
+    var v = qs.get(k);
+    if (v) props[k] = v;
+  });
+
+  require(['settings-spacelist-ordering.js'], function (app) {
+    app.init({ container: document.getElementById('app'), props: props });
+  }, function (err) {
+    var p = document.getElementById('boot-error');
+    p.style.display = 'block';
+    p.textContent = 'Could not load the settings bundle: ' + err.message
+      + ' — settings-spacelist-ordering.js must sit next to this page.';
+  });
+}());
+</script>
+</body>
+</html>
