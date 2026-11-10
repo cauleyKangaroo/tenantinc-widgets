@@ -95,7 +95,7 @@ function SpacePicker({ space, spaces, onSelect }: {
         className="ma-spacepick__btn"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-controls={listId}
+        aria-controls={open ? listId : undefined}
         onClick={() => setOpen((v) => !v)}
       >
         <span role="heading" aria-level={2} className="ma-account__title">{space.title}</span>

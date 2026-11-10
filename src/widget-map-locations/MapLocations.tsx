@@ -85,7 +85,7 @@ function Stars({ rating }: { rating: number }) {
   const full = Math.floor(rating);
   const half = rating - full >= 0.5;
   return (
-    <span className="ml-stars">
+    <span className="ml-stars" role="img" aria-label={`Rated ${rating} out of 5`}>
       {Array.from({ length: full }, (_, i) => <StarIcon key={`f${i}`} />)}
       {half && <StarIcon half />}
     </span>
@@ -134,6 +134,7 @@ function UnitRow({
         <a
           className="ml-select"
           href={rentalHref(rentalPageUrl)}
+          aria-label={`Select ${unit.dimensions} at ${facility.name}`}
           onClick={() => saveUnitSelection({
             tierId: unit.id,
             size: unit.dimensions,
@@ -358,7 +359,7 @@ function PropertyCard({
                   so it is worth having even when nothing is hidden. Absent only
                   when the row carries no slug and there is nowhere to point. */}
               {propertyHref && (
-                <a className="ml-see-all" href={propertyHref}>See All Spaces</a>
+                <a className="ml-see-all" href={propertyHref} aria-label={`See All Spaces at ${facility.name}`}>See All Spaces</a>
               )}
             </div>
           </>
@@ -1218,7 +1219,10 @@ export function MapLocations({
           </div>
           <span className="ml-popup-from">Units starting at {facility.priceLabel}</span>
           {/* The mobile frame adds a CTA here; the desktop one doesn't. */}
-          {isMobile && <button type="button" className="ml-cta">See All Units</button>}
+          {/* Visual only: .ml-popup-body is pointer-events:none, so a tap lands
+              on .ml-popup-link. Hidden from AT and the tab order so keyboard
+              users don't reach a button that does nothing. */}
+          {isMobile && <button type="button" className="ml-cta" tabIndex={-1} aria-hidden="true">See All Units</button>}
         </div>
         <button
           type="button"
@@ -1254,6 +1258,9 @@ export function MapLocations({
             revealCard(p.id);
           }}
           title={p.name}
+          // The bubble shows only a price; the name says whose it is.
+          aria-label={p.label ? `${p.name}, ${p.label}` : p.name}
+          aria-expanded={isOpen}
         >
           {/* NO STAR YET.
               The frame puts one ahead of the price, but it marks a FEATURED
@@ -1316,6 +1323,7 @@ export function MapLocations({
               <button
                 type="button"
                 className={`ml-pill${filterCount > 0 ? ' ml-pill--on' : ''}`}
+                aria-haspopup="dialog"
                 aria-expanded={filtersOpen}
                 onClick={() => setFiltersOpen(true)}
               >
@@ -1325,7 +1333,7 @@ export function MapLocations({
             </div>
           </div>
 
-          <p className="ml-heading">
+          <p className="ml-heading" role="status">
             {/* The count is unknown until the response lands; "0 Self Storage
                 Facilities in Fullerton" reads as a finished, empty page. */}
             {loading
@@ -1340,7 +1348,7 @@ export function MapLocations({
         <div className="ml-sticky-head" ref={headRef}>
         <Breadcrumb items={crumbs} />
         <div className="ml-header">
-          <p className="ml-heading">
+          <p className="ml-heading" role="status">
             {loading
               ? <Shimmer w={28} h={20} style={{ display: 'inline-block', verticalAlign: '-3px' }} />
               : facilities.length}
@@ -1354,6 +1362,7 @@ export function MapLocations({
               // count are the design's way of saying "5 filters are on"
               // (Figma 10629-81025), which stays true after the panel closes.
               className={`ml-pill${filterCount > 0 ? ' ml-pill--on' : ''}`}
+              aria-haspopup="dialog"
               aria-expanded={filtersOpen}
               onClick={() => setFiltersOpen(true)}
             >
@@ -1379,7 +1388,9 @@ export function MapLocations({
               {sortOpen && (
                 <ul className="ml-sort-menu" role="listbox" aria-label="Sort facilities">
                   {SORT_OPTIONS.map((o) => (
-                    <li key={o.id}>
+                    /* role="none": an <li> between listbox and option breaks the
+                       listbox's required-children rule. */
+                    <li key={o.id} role="none">
                       <button
                         type="button"
                         role="option"

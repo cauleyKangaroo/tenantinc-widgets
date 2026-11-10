@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import './Footer.css';
 import tenantLogo from './tenant-logo.svg';
 import { SOCIALS, PhoneIcon, AiSparkleIcon, ChevronBigRightIcon } from './icons';
@@ -452,6 +452,7 @@ export function Footer({
   const propertyBase = useMemo(() => normalizeBasePath(propertyBasePath), [propertyBasePath]);
   const [locations, setLocations] = useState<FooterLocation[] | null>(null);
   const [locationsOpen, setLocationsOpen] = useState(false);
+  const locationsId = useId();
 
   useEffect(() => {
     // No dmAPI at all ⇒ the editor or the harness, so show the frame's demo
@@ -595,7 +596,9 @@ export function Footer({
                     className="ft-link ft-link-btn ft-link-toggle"
                     type="button"
                     aria-expanded={locationsOpen}
-                    aria-controls="ft-all-locations"
+                    // Only once the panel exists — while the read is in flight
+                    // the toggle is laid out but the section is not rendered.
+                    aria-controls={hasLocations ? locationsId : undefined}
                     onClick={() => setLocationsOpen((v) => !v)}
                   >
                     <span>All Locations</span>
@@ -634,7 +637,7 @@ export function Footer({
       {/* Kept in the DOM while collapsed (hidden), so the toggle's
           aria-controls always points at something that exists. */}
       {hasLocations && (
-        <section className="ft-locations" id="ft-all-locations" ref={locationsRef} hidden={!locationsOpen}>
+        <section className="ft-locations" id={locationsId} ref={locationsRef} hidden={!locationsOpen}>
           <div className="ft-inner">
             <p className="ft-locations-heading">All Storage Locations</p>
             <div className="ft-locations-grid">

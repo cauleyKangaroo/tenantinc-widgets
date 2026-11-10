@@ -176,6 +176,8 @@ export interface Crumb {
    * page); the crumb then falls back to `href` if it has one.
    */
   onSelect?: () => boolean | void;
+  /** Accessible name when the visible label is not one (a collapsed "..."). */
+  ariaLabel?: string;
 }
 
 export interface BreadcrumbProps {
@@ -255,8 +257,8 @@ export function Breadcrumb({ items, variant = 'default', separator = '/', classN
                   <button
                     type="button"
                     className="ti-crumb-link ti-crumb-btn"
-                    /* The icon replaces the word, so the control needs the name back. */
-                    aria-label={hero && i === 0 ? c.label : undefined}
+                    /* The ellipsis replaces the word, so the control needs the name back. */
+                    aria-label={c.ariaLabel ?? (hero && i === 0 ? c.label : undefined)}
                     onClick={() => {
                       // Only an explicit false is a failure — a handler that
                       // returns nothing is the ordinary "did it" case.
@@ -270,8 +272,8 @@ export function Breadcrumb({ items, variant = 'default', separator = '/', classN
                   <a
                     className="ti-crumb-link"
                     href={c.href}
-                    /* The icon replaces the word, so the link needs the name back. */
-                    aria-label={hero && i === 0 ? c.label : undefined}
+                    /* The ellipsis replaces the word, so the link needs the name back. */
+                    aria-label={c.ariaLabel ?? (hero && i === 0 ? c.label : undefined)}
                   >
                     {label}
                   </a>
@@ -310,7 +312,9 @@ export function collapseMiddle(items: Crumb[]): Crumb[] {
   const named = items.slice(-2);
   let head = items.slice(0, -2);
   if (head.length > MAX_ELLIPSES) head = [head[0], ...head.slice(-(MAX_ELLIPSES - 1))];
-  return [...head.map((c) => ({ ...c, label: '...' })), ...named];
+  // The real name rides along as ariaLabel: three links all called "..." are
+  // indistinguishable to a screen reader.
+  return [...head.map((c) => ({ ...c, label: '...', ariaLabel: c.ariaLabel ?? c.label })), ...named];
 }
 
 /**

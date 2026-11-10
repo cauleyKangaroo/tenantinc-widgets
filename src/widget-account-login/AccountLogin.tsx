@@ -315,7 +315,7 @@ function OtpInput({ value, onChange, invalid, onComplete }: OtpInputProps) {
   };
 
   return (
-    <div className={`al-otp${invalid ? ' al-otp--invalid' : ''}`}>
+    <div className={`al-otp${invalid ? ' al-otp--invalid' : ''}`} role="group" aria-label="Verification code">
       {Array.from({ length: OTP_LENGTH }).map((_, i) => (
         <input
           key={i}
@@ -1112,6 +1112,7 @@ export function AccountLogin({
                 value={identifier}
                 onChange={(e) => handleIdentifierChange(e.target.value)}
                 aria-invalid={!!identifyError}
+                aria-describedby={identifyError ? 'al-identifier-error' : undefined}
               />
               <label className="al-field-label" htmlFor="al-identifier">{placeholder}</label>
               {identifierValid && <CheckTick size={24} className="al-field-check" />}
@@ -1121,7 +1122,7 @@ export function AccountLogin({
                 is reported after the round trip, not on the click. */}
             <div className="al-msg-slot">
               {identifyError && (
-                <div className="al-error" role="alert">
+                <div className="al-error" id="al-identifier-error" role="alert">
                   <AlertIcon size={24} className="al-error-ico" />
                   <span>{identifyError}</span>
                 </div>

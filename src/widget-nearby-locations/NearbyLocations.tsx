@@ -271,7 +271,9 @@ function SpaceRow({
             Select
           </a>
         ) : (
-          <span className="nl-select-btn nl-select-btn--inert">Select</span>
+          // Hidden from AT: it looks like a control but does nothing, so
+          // announcing "Select" would promise an action that isn't there.
+          <span className="nl-select-btn nl-select-btn--inert" aria-hidden="true">Select</span>
         )}
       </div>
     </div>
@@ -1333,6 +1335,9 @@ export function NearbyLocations({
         <button
           type="button"
           title={p.name}
+          // The visible text is only the price (or nothing), so name the pin.
+          aria-label={`${p.name ?? 'Location'}${p.label ? `, from ${p.label}` : ''}`}
+          aria-expanded={isOpen}
           onClick={(e) => { e.stopPropagation(); setMapOpenId((cur) => (cur === p.id ? null : p.id)); }}
           style={{
             position: 'absolute', left: p.left, top: p.top, transform: 'translate(-50%, -100%)',
@@ -1448,10 +1453,16 @@ export function NearbyLocations({
                     transition: reduceMotion ? 'none' : 'transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)',
                   }}
                 >
-                  {columns.map((col, i) => (
+                  {columns.map((col, i) => {
+                    const onstage = col.some((c) => deskPageIds.includes(c.id));
+                    return (
+                    /* Off-page columns are `inert` (as in #21 storage-types):
+                       out of the tab order and the a11y tree, since their
+                       cards hold links and buttons nobody can see. */
                     <div
-                      className={`nl-track-col${col.some((c) => deskPageIds.includes(c.id)) ? '' : ' nl-track-col--offstage'}`}
+                      className={`nl-track-col${onstage ? '' : ' nl-track-col--offstage'}`}
                       key={col[0]?.id ?? i}
+                      {...(onstage ? {} : { inert: '' as unknown as boolean })}
                     >
                       {col.map((property) => (
                         /* TWO ROWS ⇒ EVERY CARD THE SAME SIZE. Natural heights
@@ -1477,7 +1488,8 @@ export function NearbyLocations({
                         />
                       ))}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1489,11 +1501,11 @@ export function NearbyLocations({
                 pushed everything below it down. */}
             {(loading || totalPages > 1) && (
               <div className="nl-pagination" style={loading ? { visibility: 'hidden' } : undefined} aria-hidden={loading || undefined}>
-                <button className="nl-page-btn nl-page-btn-prev" onClick={deskCar.prev} disabled={!deskCar.canPrev} aria-label="Previous">
+                <button type="button" className="nl-page-btn nl-page-btn-prev" onClick={deskCar.prev} disabled={!deskCar.canPrev} aria-label="Previous">
                   <ChevronRight size={40} />
                 </button>
                 <CarouselDots count={deskCar.maxIndex + 1} active={safePage} onPick={deskCar.goTo} dotClass="nl-dot" label="Go to page {n}" />
-                <button className="nl-page-btn" onClick={deskCar.next} disabled={!deskCar.canNext} aria-label="Next">
+                <button type="button" className="nl-page-btn" onClick={deskCar.next} disabled={!deskCar.canNext} aria-label="Next">
                   <ChevronRight size={40} />
                 </button>
               </div>
@@ -1514,8 +1526,8 @@ export function NearbyLocations({
         </div>
 
         <div className="nl-mobile-tabs">
-          <button className={`nl-mobile-tab${mobileView === 'list' ? ' active' : ''}`} onClick={() => setMobileView('list')}>List View</button>
-          <button className={`nl-mobile-tab${mobileView === 'map' ? ' active' : ''}`} onClick={() => setMobileView('map')}>Map View</button>
+          <button type="button" className={`nl-mobile-tab${mobileView === 'list' ? ' active' : ''}`} aria-pressed={mobileView === 'list'} onClick={() => setMobileView('list')}>List View</button>
+          <button type="button" className={`nl-mobile-tab${mobileView === 'map' ? ' active' : ''}`} aria-pressed={mobileView === 'map'} onClick={() => setMobileView('map')}>Map View</button>
         </div>
 
         {mobileView === 'list' ? (
@@ -1560,7 +1572,8 @@ export function NearbyLocations({
                         <div
                           className={`nl-track-col${i === mobileIdx ? '' : ' nl-track-col--offstage'}`}
                           key={property.id}
-                          aria-hidden={i === mobileIdx ? undefined : true}
+                          // inert, not aria-hidden: the card holds focusable links.
+                          {...(i === mobileIdx ? {} : { inert: '' as unknown as boolean })}
                         >
                           <PropertyCard
                             slots={naturalSlots(property)}

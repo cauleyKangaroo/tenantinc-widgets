@@ -103,7 +103,11 @@ function SourceHeader({ source }: { source: ReviewSource }) {
         href={source.reviewsUrl || undefined}
         target={source.reviewsUrl ? '_blank' : undefined}
         rel={source.reviewsUrl ? 'noopener noreferrer' : undefined}
-        aria-label={`See ${source.name} reviews`}
+        // A label is only allowed on a real link; without an href the <a> is
+        // generic and its text is read as-is.
+        aria-label={source.reviewsUrl
+          ? `See ${source.name} reviews: ${source.score} out of 5 from ${source.count} ratings`
+          : undefined}
       >
         <PlatformLogo platform={source.key} />
         <div className="rw-source-score-block">
@@ -111,7 +115,8 @@ function SourceHeader({ source }: { source: ReviewSource }) {
           <span className="rw-source-out-of">/ 5</span>
         </div>
         <div className="rw-source-rating-col">
-          <Stars platform={source.key} rating={5} width={source.key === 'yelp' ? 110 : 105} />
+          {/* Always five full stars (brand art), so hidden — the score is the text beside it. */}
+          <Stars platform={source.key} rating={5} width={source.key === 'yelp' ? 110 : 105} decorative />
           <span className="rw-source-count">{source.count} ratings</span>
         </div>
       </a>
@@ -278,7 +283,7 @@ function Pagination({ page, total, onPrev, onNext, onDot, canPrev, canNext }: {
 
   return (
     <div className="rw-pagination">
-      <button className="rw-page-btn rw-page-btn-prev" onClick={onPrev} disabled={prevOff} aria-label="Previous">
+      <button type="button" className="rw-page-btn rw-page-btn-prev" onClick={onPrev} disabled={prevOff} aria-label="Previous">
         <ChevronRight size={40} />
       </button>
       {/* Capped at 6 with the window sliding — a source with 40 reviews is 20
@@ -290,7 +295,7 @@ function Pagination({ page, total, onPrev, onNext, onDot, canPrev, canNext }: {
         dotClass="rw-page-dot"
         label="Go to page {n}"
       />
-      <button className="rw-page-btn" onClick={onNext} disabled={nextOff} aria-label="Next">
+      <button type="button" className="rw-page-btn" onClick={onNext} disabled={nextOff} aria-label="Next">
         <ChevronRight size={40} />
       </button>
     </div>
@@ -496,7 +501,9 @@ export function Reviews({
           {sources.map((source, idx) => (
             <button
               key={source.key}
+              type="button"
               className={`rw-mobile-tab${mobileSourceIdx === idx ? ' active' : ''}`}
+              aria-pressed={mobileSourceIdx === idx}
               onClick={() => switchMobileSource(idx)}
             >
               {PLATFORM_LABEL[source.key]}

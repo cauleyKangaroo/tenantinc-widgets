@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import './UtilityBar.css';
 import { CloseCircleIcon } from '@shared/ui/icons';
 import { bool } from '@shared/dudaCollections';
@@ -310,18 +310,32 @@ export function UtilityBar({
     };
   }, [empty]);
 
+  const tooltipId = useId();
   const flag = getFlag();
   const remaining = flag ? flag.expires - Date.now() : 0;
 
   const info =
     showInfo &&
     (infoStyle === 'tooltip' ? (
-      <span className="ub-info ub-info--tooltip" tabIndex={0} role="button" aria-label="More information">
+      // A real button so it is focusable and announced; the message reaches a
+      // screen reader as its description, since the tooltip itself is CSS-only.
+      <button
+        type="button"
+        className="ub-info ub-info--tooltip"
+        aria-label="More information"
+        aria-describedby={tooltipId}
+      >
         <InfoIcon size={22} />
-        <span className="ub-tooltip" role="tooltip">{infoMessage}</span>
-      </span>
+        <span className="ub-tooltip" role="tooltip" id={tooltipId}>{infoMessage}</span>
+      </button>
     ) : (
-      <button className="ub-info" onClick={() => setModalOpen(true)} aria-label="More information">
+      <button
+        type="button"
+        className="ub-info"
+        onClick={() => setModalOpen(true)}
+        aria-label="More information"
+        aria-haspopup="dialog"
+      >
         <InfoIcon size={22} />
       </button>
     ));
@@ -381,7 +395,7 @@ export function UtilityBar({
             </div>
             <div className="ub-close-wrap">
               {showClose && (
-                <button className="ub-close" onClick={handleClose} aria-label="Close">
+                <button type="button" className="ub-close" onClick={handleClose} aria-label="Close">
                   {/* Outlined ring: .ub-bar is #000, so the white-on-dark
                       treatment. 32 desktop and mobile, and it is the icon's own
                       32 FRAME rather than a scaled 52: `outlined` picks the
@@ -402,8 +416,8 @@ export function UtilityBar({
             if (e.target === e.currentTarget) setModalOpen(false);
           }}
         >
-          <div className="ub-modal" role="dialog" aria-modal="true">
-            <button className="ub-modal-close" onClick={() => setModalOpen(false)} aria-label="Close">
+          <div className="ub-modal" role="dialog" aria-modal="true" aria-label="More information">
+            <button type="button" className="ub-modal-close" onClick={() => setModalOpen(false)} aria-label="Close">
               <CloseIcon size={18} />
             </button>
             <div className="ub-modal-body">{infoMessage}</div>
@@ -426,7 +440,9 @@ export function UtilityBar({
               <span className="ub-debug-countdown">{msToHMS(remaining)}</span>
             </div>
           )}
-          <button className="ub-debug-btn" onClick={handleDeleteFlag}>🗑 Delete Flag</button>
+          <button type="button" className="ub-debug-btn" onClick={handleDeleteFlag}>
+            <span aria-hidden="true">🗑</span> Delete Flag
+          </button>
         </div>
       )}
     </div>

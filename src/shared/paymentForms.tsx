@@ -794,6 +794,8 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
   const [gpError, setGpError] = useState('');
   const uid = useId().replace(/:/g, '');
   const numId = `gp-num-${uid}`, expId = `gp-exp-${uid}`, subId = `gp-sub-${uid}`;
+  // The plain inputs' own ids, so each visible label is tied to its field.
+  const numInputId = `rf-num-${uid}`, expInputId = `rf-exp-${uid}`, cvvInputId = `rf-cvv-${uid}`;
 
   /**
    * What GP tells us about its two frames, and all it tells us: a `valid`
@@ -1285,6 +1287,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
           {hosted === false && (
             <input
               className="rf-cardrow-input"
+              id={numInputId}
               ref={numberRef}
               value={number}
               onChange={(e) => onNumber(e.target.value)}
@@ -1299,7 +1302,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
               placeholder, which is the only one that comes back when the field
               is emptied — a second label drawn from here would sit on top of
               it and could not know when to leave. */}
-          {hosted === false && <label className="rf-cardcell-label">Card Number<span className="rf-req">*</span></label>}
+          {hosted === false && <label className="rf-cardcell-label" htmlFor={numInputId}>Card Number<span className="rf-req">*</span></label>}
           {/* The hosted cell's floating label (phones, opt-in): drawn here only
               while the frame's own placeholder is blanked — see floatNumber. */}
           {floatNumber && (
@@ -1320,6 +1323,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
           <span className="rf-cardcell rf-cardcell--exp">
             <input
               className="rf-cardrow-input"
+              id={expInputId}
               ref={expiryRef}
               value={expiry}
               onChange={(e) => onExpiry(e.target.value)}
@@ -1330,12 +1334,13 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
               autoComplete="cc-exp"
               aria-label="Card expiry, MM / YY (required)"
             />
-            <label className="rf-cardcell-label">MM / YY<span className="rf-req">*</span></label>
+            <label className="rf-cardcell-label" htmlFor={expInputId}>MM / YY<span className="rf-req">*</span></label>
           </span>
 
           <span className="rf-cardcell rf-cardcell--cvv">
             <input
               className="rf-cardrow-input"
+              id={cvvInputId}
               ref={cvvRef}
               value={cvv}
               /* 4 when the brand is unknown — GP's iframe owns the PAN, so
@@ -1354,7 +1359,7 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
               autoComplete="cc-csc"
               aria-label="Card security code (required)"
             />
-            <label className="rf-cardcell-label">CVV<span className="rf-req">*</span></label>
+            <label className="rf-cardcell-label" htmlFor={cvvInputId}>CVV<span className="rf-req">*</span></label>
           </span>
           {/* MOBILE ONLY (hidden in CSS above 640px): on a phone the pair is its
               own bordered box, so it gets its own tick, shown when ITS two
@@ -1546,6 +1551,8 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
         <span
           id={subId}
           className={`rf-gp-submit${hosted === false || stripeMode || busy ? ' rf-gp-submit--off' : ''}`}
+          // role="group": aria-label is not allowed on a role-less <span>.
+          role="group"
           aria-label={payLabel ?? `Pay Now ${money(total)}`}
         />
       </div>

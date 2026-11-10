@@ -9,13 +9,14 @@
 // outside, scroll lock, portalled to <body>.
 // ===========================================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import QRCode from 'react-qr-code';
 import { Shimmer } from '@shared/Shimmer';
 import { CloseCircleIcon, FormField, isPossiblePhone } from '@shared/ui';
 import { IdCardIcon } from './planIcons';
 import { IdIllustration } from './IdIllustration';
+import { useDialogFocus } from './useDialogFocus';
 
 export type IdVerifyResult = 'complete' | 'failed' | 'later';
 
@@ -50,6 +51,8 @@ export function IdVerifyModal({
   const [sent, setSent] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
+  const titleId = useId();
+  const closeRef = useDialogFocus<HTMLButtonElement>(open);
 
   useEffect(() => {
     if (!open) return;
@@ -78,11 +81,11 @@ export function IdVerifyModal({
         className="rf-modal rf-idm"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="rf-idm-title"
+        aria-labelledby={titleId}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="rf-modal-head">
-          <h2 className="rf-modal-title rf-idm-title" id="rf-idm-title">
+          <h2 className="rf-modal-title rf-idm-title" id={titleId}>
             <IdCardIcon size={24} />
             Verify ID Now
           </h2>
@@ -90,7 +93,7 @@ export function IdVerifyModal({
               32, filling the 32px button. Same glyph, same box, so the two
               modals close the same way — change one, change both (and the
               !important pin in screens.css, which would otherwise win). */}
-          <button type="button" className="rf-modal-close" onClick={onClose} aria-label="Close">
+          <button type="button" className="rf-modal-close" onClick={onClose} aria-label="Close" ref={closeRef}>
             {/* Filled disc: .rf-modal is #fff. */}
             <CloseCircleIcon size={32} />
           </button>
@@ -147,7 +150,7 @@ export function IdVerifyModal({
           {/* Nothing was sent. Said plainly rather than "Text sent!", which
               would be a claim the widget cannot make. */}
           {sent && !connected && <p className="rf-idm-note">No text is sent yet — verification is not connected.</p>}
-          {connected && resendMessage && <p className="rf-idm-note">{resendMessage}</p>}
+          {connected && resendMessage && <p className="rf-idm-note" role="status">{resendMessage}</p>}
           {connected && resendUncertain && <p className="rf-idm-note">We could not confirm the resend. Your existing verification is still available below. Contact the store before requesting another text.</p>}
           {connected && <p className="rf-idm-note">
             {lifecycle === 'pending'
@@ -172,9 +175,11 @@ export function IdVerifyModal({
                     fgColor="#101318"
                     bgColor="#ffffff"
                     title="QR code for the ID verification page"
+                    role="img"
+                    aria-label="QR code for the ID verification page"
                   />
                 ) : (
-                  <div role="status" aria-label="Preparing QR code"><Shimmer w={148} h={148} r={4} /></div>
+                  <div role="status"><span className="rf-sr-only">Preparing QR code</span><Shimmer w={148} h={148} r={4} /></div>
                 )}
               </div>
               <p className="rf-idm-para rf-idm-qr-note">Or scan this code with your phone&rsquo;s camera.</p>

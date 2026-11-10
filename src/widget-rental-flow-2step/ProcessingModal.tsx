@@ -23,8 +23,9 @@
 // note at the return.
 // ===========================================================================
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useDialogFocus } from './useDialogFocus';
 import storelocalLogo from '../widget-navigation-bar/Storelocal_logo.png';
 
 /** How long the wrap-up runs before `onDone`, once there is nothing to wait for. */
@@ -169,6 +170,11 @@ export function ProcessingModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, durationMs, waiting]);
 
+  // No control to focus, so the dialog itself takes focus (tabIndex -1) — it
+  // would otherwise open with focus still on the pay button behind it.
+  const titleId = useId();
+  const dialogRef = useDialogFocus<HTMLDivElement>(open);
+
   if (!open) return null;
 
   const shown = Math.round(pct);
@@ -177,7 +183,7 @@ export function ProcessingModal({
 
   const screen = (
     <div className="rf-overlay rf-overlay--solid rf-overlay--proc" role="presentation">
-      <div className="rf-proc" role="dialog" aria-modal="true" aria-labelledby="rf-proc-title">
+      <div className="rf-proc" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} ref={dialogRef}>
         {/* Mobile only, via CSS — the desktop lightbox floats over a page that
             still shows the sticky header's logo behind it. */}
         {/* alt is EMPTY on purpose: this is decorative here — the heading
@@ -185,7 +191,7 @@ export function ProcessingModal({
             "storelocal storage" would announce the wrong brand on any site that
             sets its own logo. */}
         <img className="rf-proc-logo" src={logoSrc} alt="" />
-        <h2 className="rf-proc-title" id="rf-proc-title">
+        <h2 className="rf-proc-title" id={titleId}>
           {greeting && <span className="rf-proc-name">{greeting}, </span>}
           we&rsquo;re finalizing your lease &amp; payment
         </h2>

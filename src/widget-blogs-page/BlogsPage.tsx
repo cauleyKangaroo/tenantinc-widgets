@@ -111,7 +111,7 @@ function SharePopover({ post, profiles }: { post: BlogPostData; profiles: Social
   const url = absolutePostUrl(post.href);
 
   return (
-    <div className="bpg-share-pop" role="menu">
+    <div className="bpg-share-pop" role="group" aria-label="Share">
       {shareTargets(url, post.title, profiles).map(({ key, label, href }) => {
         const Icon = ICON_BY_KEY[key];
         return (
@@ -123,7 +123,6 @@ function SharePopover({ post, profiles }: { post: BlogPostData; profiles: Social
             rel="noopener noreferrer"
             aria-label={label}
             title={label}
-            role="menuitem"
           >
             <Icon size={26} />
           </a>
@@ -164,7 +163,9 @@ function BlogCard({ post, profiles, shareOpen, onToggleShare }: BlogCardProps) {
         {byline && <p className="bpg-card-byline">{byline}</p>}
         {post.excerpt && <p className="bpg-card-excerpt">{post.excerpt}</p>}
         <div className="bpg-card-footer">
-          <a className="bpg-readmore" href={linked ? post.href : '#'} tabIndex={-1}>Read more</a>
+          {/* A mouse-only duplicate of the title link: out of the tab order and
+              the accessibility tree, and no dead href="#" when unlinked. */}
+          <a className="bpg-readmore" href={linked ? post.href : undefined} tabIndex={-1} aria-hidden="true">Read more</a>
           <button className="bpg-share" type="button" onClick={onToggleShare} aria-expanded={shareOpen}>
             <ShareIcon size={24} />
             Share

@@ -64,7 +64,7 @@ const ALL_CATEGORY: SizeCategory = {
 function PlayButton() {
   return (
     <div className="sl-sg2-play">
-      <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+      <svg width="56" height="56" viewBox="0 0 56 56" fill="none" aria-hidden="true" focusable="false">
         <circle cx="28" cy="28" r="28" fill="rgba(255,255,255,0.85)" />
         <polygon points="23,18 43,28 23,38" fill="#637381" />
       </svg>
@@ -139,6 +139,8 @@ export function SizeGuideSection({ showVideos = true }: { showVideos?: boolean }
         {cats.map((c) => (
           <button
             key={c.tab}
+            type="button"
+            aria-pressed={activeTab === c.tab}
             className={`sl-sg2-tab${activeTab === c.tab ? ' active' : ''}`}
             onClick={() => setActiveTab(c.tab)}
           >

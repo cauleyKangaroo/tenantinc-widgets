@@ -109,16 +109,15 @@ function SizeCard({ unit, band, parking = false, onPlay }: {
         {/* Filters the Space List on this page to this size IN THIS TAB and
             scrolls up to it (@shared/sizeFilterBus). No such space, or no Space
             List on the page → no-op. */}
-        <a
+        <button
+          type="button"
           className="sg-see-all"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
+          onClick={() => {
             emitShowSize({ dimensions: unit.dims || unit.title, label: unit.title, band, parking });
           }}
         >
           See Available Spaces
-        </a>
+        </button>
       </div>
     </div>
   );
@@ -216,7 +215,13 @@ export function SizeGuide({
   const tabs = (
     <div className="sg-tabs">
       {cats.map((c, i) => (
-        <button key={c.key} className={`sg-tab${i === catIdx ? ' active' : ''}`} onClick={() => selectCategory(i)}>
+        <button
+          key={c.key}
+          type="button"
+          className={`sg-tab${i === catIdx ? ' active' : ''}`}
+          aria-pressed={i === catIdx}
+          onClick={() => selectCategory(i)}
+        >
           {c.label}
         </button>
       ))}
@@ -294,8 +299,14 @@ export function SizeGuide({
               transition: reduceMotion ? 'none' : 'transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)',
             }}
           >
-            {category.units.map((unit) => (
-              <div className="sg-track-item sg-track-item--desk" key={unit.id}>
+            {/* Off-page cards are `inert` so their buttons leave the tab order
+                (as in #21 storage-types). */}
+            {category.units.map((unit, i) => (
+              <div
+                className="sg-track-item sg-track-item--desk"
+                key={unit.id}
+                {...(i >= page && i < page + CARDS_PER_PAGE ? {} : { inert: '' as unknown as boolean })}
+              >
                 <SizeCard unit={unit} band={category.key} parking={isParkingTab} onPlay={isPlayableVideoId(unit.videoId) ? onPlay : undefined} />
               </div>
             ))}
@@ -303,11 +314,11 @@ export function SizeGuide({
         </div>
         {totalPages > 1 && (
           <div className="sg-pagination">
-            <button className="sg-page-btn sg-page-btn-prev" onClick={deskCar.prev} disabled={!deskCar.canPrev} aria-label="Previous">
+            <button type="button" className="sg-page-btn sg-page-btn-prev" onClick={deskCar.prev} disabled={!deskCar.canPrev} aria-label="Previous">
               <ChevronRight size={40} />
             </button>
             <CarouselDots count={totalPages} active={page} onPick={deskGoTo} dotClass="sg-dot" label="Go to page {n}" />
-            <button className="sg-page-btn" onClick={deskCar.next} disabled={!deskCar.canNext} aria-label="Next">
+            <button type="button" className="sg-page-btn" onClick={deskCar.next} disabled={!deskCar.canNext} aria-label="Next">
               <ChevronRight size={40} />
             </button>
           </div>
@@ -337,7 +348,8 @@ export function SizeGuide({
               <div
                 className="sg-track-item"
                 key={`${category.key}-${unit.id}`}
-                aria-hidden={i === mobileIdx ? undefined : true}
+                // inert, not aria-hidden: the hidden cards hold focusable buttons.
+                {...(i === mobileIdx ? {} : { inert: '' as unknown as boolean })}
               >
                 <SizeCard unit={unit} band={category.key} parking={isParkingTab} onPlay={isPlayableVideoId(unit.videoId) ? onPlay : undefined} />
               </div>

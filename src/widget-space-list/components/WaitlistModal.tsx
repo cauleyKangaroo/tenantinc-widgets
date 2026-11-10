@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FormField, type FieldType } from '@shared/ui/FormField';
 import { Button } from '@shared/ui/Button';
@@ -110,6 +110,8 @@ export function WaitlistModal({
   submitLead: (input: LeadInput) => Promise<unknown>;
 }) {
   const [form, setForm] = useState(EMPTY);
+  // One modal per CTA, so a fixed id could repeat.
+  const headingId = useId();
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [error, setError] = useState('');
   const property = usePropertyExtras();
@@ -205,7 +207,7 @@ export function WaitlistModal({
         className="sl-wl-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="sl-wl-heading"
+        aria-labelledby={headingId}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="sl-wl-head">
@@ -217,7 +219,7 @@ export function WaitlistModal({
 
         <div className="sl-wl-body">
           <form className="sl-wl-form" onSubmit={handleSubmit} noValidate>
-            <h2 id="sl-wl-heading" className="sl-wl-heading">
+            <h2 id={headingId} className="sl-wl-heading">
               <span className="sl-wl-kicker">Great choice!</span>
               <span>Join our Waitlist</span>
             </h2>

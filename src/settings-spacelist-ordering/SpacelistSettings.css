@@ -53,6 +53,7 @@
 /* ── Property picker (shared by the Group + Property tabs) ── */
 .sos-picker { margin: 0 0 12px; }
 .sos-picker label { display: block; font-size: 12px; font-weight: 600; color: var(--slate); margin-bottom: 4px; }
+.sos-src { font-style: normal; font-weight: 400; color: var(--quiet); margin-left: 8px; }
 .sos-picker select {
   font: inherit; width: 100%; padding: 9px 12px;
   border: 1px solid var(--line); border-radius: 8px; background: #fff;
@@ -77,6 +78,12 @@
   background: var(--badge); border-radius: 999px; padding: 3px 10px; white-space: nowrap;
 }
 .sos-badge--public { background: #def7ec; color: #046c4e; }
+
+/* ── Drag-to-arrange (the catalogue) ── */
+.sos-row--draggable { cursor: grab; user-select: none; }
+.sos-row--draggable:active { cursor: grabbing; }
+.sos-row--dragging { opacity: .45; border-style: dashed; }
+.sos-grip { color: var(--quiet); font-size: 14px; line-height: 1; letter-spacing: -2px; }
 
 .sos-count-line { font-size: 13px; color: var(--slate); margin: 0 0 10px; }
 .sos-count-line b { color: var(--night); }

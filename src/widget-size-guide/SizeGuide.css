@@ -205,6 +205,20 @@
   width: fit-content;
 }
 
+/* A <button> (it filters, it doesn't navigate) — strip the UA chrome so it
+   still reads as the underlined link. No `font` shorthand: it would beat
+   .sg-see-all's size/weight on specificity. */
+button.sg-see-all {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
 .sg-see-all:hover {
   color: color-mix(in srgb, var(--color_2, #509e2f) 85%, black);
 }

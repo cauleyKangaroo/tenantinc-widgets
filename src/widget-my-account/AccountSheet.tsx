@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 // ===========================================================================
@@ -20,6 +20,15 @@ export interface SheetItem {
 }
 
 export function AccountSheet({ items, onClose }: { items: SheetItem[]; onClose: () => void }) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  // A modal sheet: focus goes in on open and back to the trigger on close.
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    sheetRef.current?.querySelector<HTMLElement>('button')?.focus();
+    return () => { prev?.focus?.(); };
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
@@ -37,12 +46,13 @@ export function AccountSheet({ items, onClose }: { items: SheetItem[]; onClose: 
       className="ma-sheet-backdrop"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="ma-sheet" role="menu" aria-label="Account menu">
+      {/* A dialog of plain buttons, not role="menu": a menu promises arrow-key
+          roving focus, and these rows are reached with Tab. */}
+      <div className="ma-sheet" ref={sheetRef} role="dialog" aria-modal="true" aria-label="Account menu">
         {items.map((item) => (
           <button
             key={item.label}
             type="button"
-            role="menuitem"
             className="ma-sheet__item"
             onClick={() => { onClose(); item.onSelect(); }}
           >

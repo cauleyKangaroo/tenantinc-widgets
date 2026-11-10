@@ -35,7 +35,7 @@ const SIZE_DEFAULT_OPEN: Record<UnitSize, boolean> = {
 };
 
 const ChevronDown = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
     <polyline points="6 9 12 15 18 9" />
   </svg>
 );
@@ -58,13 +58,14 @@ export function DefaultCard({ unit, config }: { unit: Unit; config: WidgetConfig
               onError={unitImageOnError(unit)}
             />
           )}
-          <a
-            href="#"
+          <button
+            type="button"
             className="sl-dv-see-fits"
-            onClick={(e) => { e.preventDefault(); config.onSeeWhatFits?.(unit); }}
+            aria-label={`See what fits in a ${unit.dimensions} unit`}
+            onClick={() => config.onSeeWhatFits?.(unit)}
           >
             See what fits <PlayCircleIcon />
-          </a>
+          </button>
         </div>
 
         <div className="sl-dv-info">
@@ -134,10 +135,10 @@ function StorageAccordions({ units, config }: { units: Unit[]; config: WidgetCon
         const isOpen = open[size];
         return (
           <div key={size} className={`sl-accordion${isOpen ? ' expanded' : ''}`}>
-            <div className="sl-accordion-header" onClick={() => toggle(size)}>
+            <button type="button" className="sl-accordion-header" aria-expanded={isOpen} onClick={() => toggle(size)}>
               <span className="sl-accordion-title">{SIZE_LABEL[size]}</span>
               <span className="sl-chevron"><ChevronDown /></span>
-            </div>
+            </button>
             {isOpen && (
               <div className="sl-accordion-body">
                 <CardRows units={groupUnits} config={config} />
@@ -158,10 +159,10 @@ function TypeAccordion({ spaceType, units, config }: { spaceType: SpaceType; uni
 
   return (
     <div className={`sl-accordion${open ? ' expanded' : ''}`}>
-      <div className="sl-accordion-header" onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="sl-accordion-header" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <span className="sl-accordion-title">{label}</span>
         <span className="sl-chevron"><ChevronDown /></span>
-      </div>
+      </button>
       {open && (
         <div className="sl-accordion-body">
           <CardRows units={sortUnits(units, config.sortBy)} config={config} />

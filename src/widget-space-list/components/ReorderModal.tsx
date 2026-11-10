@@ -23,7 +23,7 @@ interface ReorderModalProps {
 
 function CloseIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
@@ -32,7 +32,7 @@ function CloseIcon() {
 
 function ChevronUp() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       <polyline points="6 15 12 9 18 15" />
     </svg>
   );
@@ -40,7 +40,7 @@ function ChevronUp() {
 
 function ChevronDown() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
       <polyline points="6 9 12 15 18 9" />
     </svg>
   );
@@ -132,7 +132,7 @@ export function ReorderModal({ sections, config, onClose, onSave, saving = false
             <span className="sl-reorder-title">Manage accordions</span>
             <span className="sl-reorder-subtitle">Tick to show · arrows to reorder</span>
           </div>
-          <button className="sl-modal-close" onClick={onClose} aria-label="Close">
+          <button type="button" className="sl-modal-close" onClick={onClose} aria-label="Close">
             <CloseIcon />
           </button>
         </div>
@@ -150,7 +150,8 @@ export function ReorderModal({ sections, config, onClose, onSave, saving = false
                   aria-checked={shown}
                   className={`sl-reorder-toggle${shown ? ' on' : ''}`}
                   onClick={() => toggleHidden(key)}
-                  aria-label={`${shown ? 'Hide' : 'Show'} ${labelOf.get(key)}`}
+                  // A switch's name stays fixed; aria-checked carries on/off.
+                  aria-label={`Show ${labelOf.get(key)}`}
                 >
                   <span className="sl-reorder-toggle-knob" />
                 </button>
@@ -180,10 +181,10 @@ export function ReorderModal({ sections, config, onClose, onSave, saving = false
           })}
         </ul>
 
-        {error && <div className="sl-reorder-error">{error}</div>}
+        {error && <div className="sl-reorder-error" role="alert">{error}</div>}
 
         <div className="sl-reorder-footer">
-          <span className="sl-reorder-count">{visibleCount} of {order.length} shown</span>
+          <span className="sl-reorder-count" role="status">{visibleCount} of {order.length} shown</span>
           <div className="sl-reorder-actions">
             <button className="sl-reorder-cancel" onClick={onClose} type="button" disabled={saving}>
               Cancel

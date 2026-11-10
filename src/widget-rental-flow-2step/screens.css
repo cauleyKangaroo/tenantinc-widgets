@@ -123,6 +123,7 @@
 
 /* ── Processing lightbox (8509-35122) ────────────────────────────────────── */
 
+.rf-proc:focus { outline: none; } /* focused programmatically on open */
 .rf-proc {
   display: flex;
   flex-direction: column;
@@ -417,6 +418,14 @@
 .rf-sx-btn--solid.rf-sx-btn--primary:disabled,
 .rf-sx-btn--solid.rf-sx-btn--primary:disabled:hover {
   background: var(--color_1, #10666d) !important;
+}
+/* The 1-step card's "Verify ID Now" is the kit <Button>, so it gets the same
+   site PRIMARY by retoning the kit's own variables — its hover, press and
+   disabled rules then follow without separate overrides. */
+.hb-btn.rf2-idv-primary {
+  --hb-btn-tone: var(--color_1, #10666d);
+  --hb-btn-tone-hover: color-mix(in srgb, var(--color_1, #10666d) 88%, #000);
+  --hb-btn-tone-active: color-mix(in srgb, var(--color_1, #10666d) 78%, #000);
 }
 
 .rf-sx-idv-note {

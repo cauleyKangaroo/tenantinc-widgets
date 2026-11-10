@@ -22,10 +22,15 @@ export interface CheckboxProps {
    * mark cannot be swapped from CSS. Omit for the default.
    */
   tick?: React.ReactNode;
+  /** Marks the box invalid for assistive tech (pair with `describedBy`). */
+  invalid?: boolean;
+  /** Id of the element explaining it, e.g. the caller's error message. */
+  describedBy?: string;
 }
 
 export function Checkbox({
   checked, onChange, children, disabled = false, required = false, className, id, tick,
+  invalid, describedBy,
 }: CheckboxProps) {
   const reactId = useId();
   const inputId = id ?? `hb-check-${reactId}`;
@@ -45,6 +50,8 @@ export function Checkbox({
         checked={checked}
         disabled={disabled}
         required={required}
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
         onChange={(e) => onChange(e.target.checked)}
       />
       <span className="hb-check__box" aria-hidden="true">

@@ -74,12 +74,6 @@ function onHeroImgError(e: React.SyntheticEvent<HTMLImageElement>): void {
   e.currentTarget.removeAttribute('src');
 }
 
-function activateOnKey(activate: () => void) {
-  return (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(); }
-  };
-}
-
 // Neutral empty context default — structurally valid, renders nothing. The
 // live layout only mounts in the 'live' state (real TierData); this default
 // is never shown as tiers. No sample prices/names live in this module.
@@ -110,7 +104,7 @@ function TierSelectCta({
   variant?: 'option1' | 'option1-mobile' | 'cards' | 'cards-mobile';
   stopPropagation?: boolean;
 }) {
-  const { rentHref, onSelectClick, ctaLabel } = useTierData();
+  const { rentHref, onSelectClick, ctaLabel, tiers } = useTierData();
   const href = soldOut ? undefined : rentHref?.(tierKey);
   const className = [
     'ts-tier-cta',
@@ -118,6 +112,9 @@ function TierSelectCta({
     soldOut ? 'ts-tier-cta--soldout' : '',
   ].filter(Boolean).join(' ');
   const content = ctaLabel ?? 'Select';
+  // Cards repeat the same CTA, so each names its tier; visible copy leads.
+  const tierName = tiers.find((t) => t.key === tierKey)?.name;
+  const ariaLabel = tierName ? `${content} ${tierName}` : undefined;
   const handleClick = (e: React.MouseEvent) => {
     if (stopPropagation) e.stopPropagation();
     onSelectClick?.(tierKey)(e);
@@ -131,6 +128,7 @@ function TierSelectCta({
       href={href}
       className={className}
       onClick={handleClick}
+      aria-label={ariaLabel}
     >
       {content}
     </Button>
@@ -141,6 +139,7 @@ function TierSelectCta({
       block
       disabled
       className={className}
+      aria-label={ariaLabel}
     >
       {content}
     </Button>
@@ -1127,14 +1126,16 @@ export function TierSelection({
             >
               {/* Fixed shell header — the single source of the modal's heading, so
                   the body layouts render chromeless (no duplicate header). */}
-              <header className="ts-modal-header">
+              {/* A div: a <header> outside any sectioning element is a page
+                  banner landmark, and the page already has one. */}
+              <div className="ts-modal-header">
                 <TierModalHeader
                   heading={isMobile ? headingMobile : heading}
                   subheading={isMobile ? undefined : subheading}
                   urgency={modalShowUrgency === false ? '' : urgency}
                   onClose={() => setModalOpen(false)}
                 />
-              </header>
+              </div>
               <div className="ts-modal-body">
                 {inner}
                 {effectiveAdminFeeText && (
@@ -1342,8 +1343,12 @@ function PricingDetails({ price, className, tierKey, mobile = false }: { price: 
         ref={triggerRef}
         className={`ts-pd-link${className ? ' ' + className : ''}`}
         href="#"
+        // It toggles the breakdown rather than navigating. The tooltip only
+        // exists once `pos` is set, so it is referenced only from then on.
+        role="button"
         aria-expanded={visible}
-        aria-controls={tooltipId}
+        aria-controls={pos ? tooltipId : undefined}
+        aria-describedby={pos ? tooltipId : undefined}
         onPointerDown={() => { pointerActivation.current = true; }}
         onClick={(e) => {
           e.preventDefault();
@@ -1358,7 +1363,14 @@ function PricingDetails({ price, className, tierKey, mobile = false }: { price: 
           if (!pointerActivation.current) showAtTrigger(e.currentTarget);
         }}
         onBlur={() => setVisible(false)}
-        onKeyDown={(e) => { if (e.key === 'Escape') { setVisible(false); e.currentTarget.blur(); } }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { setVisible(false); e.currentTarget.blur(); }
+          // role="button" promises Space; a link only answers Enter natively.
+          else if (e.key === ' ') {
+            e.preventDefault();
+            if (visible) setVisible(false); else showAtTrigger(e.currentTarget);
+          }
+        }}
         onMouseEnter={(e) => { track(e); setVisible(true); if (tierKey) ensureQuote?.(tierKey); }}
         onMouseMove={track}
         onMouseLeave={() => setVisible(false)}
@@ -1452,7 +1464,7 @@ function Cell({ row, tier }: { row: FeatureRow; tier: Tier }) {
       </span>
     );
   }
-  return row[tier.key] ? <CheckIcon size={24} className="ts-cell-check" /> : null;
+  return row[tier.key] ? <CheckIcon size={24} className="ts-cell-check" label="Included" /> : null;
 }
 
 // ── Desktop (Layout 1) ──────────────────────────────────────────────────────
@@ -1563,7 +1575,8 @@ function DesktopLayout({ tier, selected, setSelected, heading, subheading, urgen
 
         <div className="ts-table" role="table" style={{ ['--ts-cols']: tiers.length } as React.CSSProperties}>
           <div className="ts-thead" role="row">
-            <div className="ts-th ts-th--label" role="columnheader" />
+            {/* The empty corner: a cell, since an empty header is itself a violation. */}
+            <div className="ts-th ts-th--label" role="cell" />
             {tiers.map((t) => (
               <div
                 key={t.key}
@@ -1730,7 +1743,7 @@ function MobileLayout({
       {/* Compact comparison table */}
       <div className="ts-mt" role="table" style={{ ['--ts-cols']: visibleTiers.length } as React.CSSProperties}>
         <div className="ts-mt-row ts-mt-head" role="row">
-          <div className="ts-mt-cell ts-mt-label" role="columnheader" />
+          <div className="ts-mt-cell ts-mt-label" role="cell" />
           {visibleTiers.map((t) => (
             <div
               key={t.key}
@@ -1775,7 +1788,7 @@ function MobileCell({ row, tier }: { row: FeatureRow; tier: Tier }) {
     ) : <span className="ts-mt-text">{priceFmt(tier.price)}</span>;
   }
   if (row.type === 'hours') return <span className="ts-mt-text">{tier.hours}</span>;
-  return row[tier.key] ? <CheckIcon size={22} className="ts-mt-check" /> : null;
+  return row[tier.key] ? <CheckIcon size={22} className="ts-mt-check" label="Included" /> : null;
 }
 
 // ── Option 2 — Good/Better/Best pricing cards ───────────────────────────────
@@ -1841,11 +1854,12 @@ function O2Card({ card }: { card: O2Tier }) {
   return (
     <div
       className={`ts-o2-card${card.promo ? '' : ' ts-o2-card--no-promo'}${isFeatured ? ' ts-o2-card--popular' : ''}${isSelected ? ' ts-o2-card--selected' : ''}`}
+      /* Click-to-highlight is a mouse nicety only: the card holds its own
+         Select and Pricing Details, and a role="button" around them was nested
+         interactive content (its Enter handler also swallowed Enter on Select). */
       onClick={() => setSelected?.(card.key)}
-      onKeyDown={activateOnKey(() => setSelected?.(card.key))}
-      role="button"
-      tabIndex={0}
-      aria-pressed={isSelected}
+      role="group"
+      aria-label={card.name}
     >
       {isFeatured && <span className="ts-o2-badge">Most Popular</span>}
 
@@ -2080,12 +2094,10 @@ function O3Column({ card }: { card: O3Tier }) {
   return (
     <div
       className={`ts-o3-col ts-o3-tier${isFeatured ? ' ts-o3-col--popular' : ''}${isSelected ? ' ts-o3-col--selected' : ''}`}
+      // Mouse-only highlight, as on Option 2's cards — see the note there.
       onClick={() => !card.soldOut && setSelected?.(card.key)}
-      onKeyDown={card.soldOut ? undefined : activateOnKey(() => setSelected?.(card.key))}
-      role="button"
-      tabIndex={card.soldOut ? -1 : 0}
-      aria-pressed={isSelected}
-      aria-disabled={card.soldOut || undefined}
+      role="group"
+      aria-label={card.name}
     >
       {isFeatured && <span className="ts-o2-badge ts-o3-badge">Most Popular</span>}
 
@@ -2158,5 +2170,5 @@ function O3Cell({ row, tierKey }: { row: O3Row; tierKey: TierKey }) {
       </span>
     );
   }
-  return row[tierKey] ? <CheckIcon size={24} className="ts-o3-check" /> : null;
+  return row[tierKey] ? <CheckIcon size={24} className="ts-o3-check" label="Included" /> : null;
 }

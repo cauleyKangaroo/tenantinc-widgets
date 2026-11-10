@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CloseSolidIcon, MapPinIcon, PhoneIcon } from '@shared/ui/icons';
 import type { LeadInput } from '@shared/leadsApi';
@@ -87,13 +87,15 @@ function ConfirmationCard({
   const { name, address = '', phones = [], hours = [] } = facility;
   const [street, locality] = splitAddress(address);
   const shownHours = hours.filter((s) => s.lines.length > 0);
+  // Not a fixed id: two cards on one page would share it.
+  const headingId = useId();
 
   return (
     <div
       className="hb-cc-card"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="hb-cc-heading"
+      aria-labelledby={headingId}
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Not in the frame — a dialog still needs a visible way out. */}
@@ -101,7 +103,7 @@ function ConfirmationCard({
         <CloseSolidIcon size={18} />
       </button>
 
-      <h2 id="hb-cc-heading" className="hb-cc-heading">
+      <h2 id={headingId} className="hb-cc-heading">
         <span className="hb-cc-kicker">Great,</span>
         <span>We’ll contact you soon.</span>
       </h2>

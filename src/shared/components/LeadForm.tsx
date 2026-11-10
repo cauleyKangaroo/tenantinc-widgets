@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { Checkbox } from '@shared/ui/Checkbox';
 import { FormField, type FieldType } from '@shared/ui/FormField';
 import { isPossiblePhone } from '@shared/ui/phone';
@@ -142,6 +142,7 @@ function MessageBox({
   error?: string;
 }) {
   const filled = value.trim().length > 0;
+  const errorId = useId();
   return (
     <div className="pi-msg-area-wrap">
       <label className={`pi-msg-area${filled ? ' pi-msg-area--valid' : ''}${error ? ' pi-msg-area--error' : ''}`}>
@@ -153,11 +154,13 @@ function MessageBox({
           placeholder=" "
           disabled={disabled}
           aria-invalid={error ? true : undefined}
+          aria-required={required || undefined}
+          aria-describedby={error ? errorId : undefined}
           onChange={(e) => onChange(e.target.value)}
         />
-        <span className="pi-msg-area-label">{label}{required && <span className="pi-req">*</span>}</span>
+        <span className="pi-msg-area-label">{label}{required && <span className="pi-req" aria-hidden="true">*</span>}</span>
       </label>
-      {error && <p className="pi-msg-field-error" role="alert">{error}</p>}
+      {error && <p className="pi-msg-field-error" id={errorId} role="alert">{error}</p>}
     </div>
   );
 }
@@ -204,6 +207,8 @@ export function LeadForm({
   // to the name + address state (Figma 10199-67707).
   const [selected, setSelected] = useState<Facility | null>(defaultFacility);
   const [listOpen, setListOpen] = useState(false);
+  const listId = useId();
+  const consentErrorId = useId();
   const [consent, setConsent] = useState(false);
 
   // Form values + submission state.
@@ -282,7 +287,7 @@ export function LeadForm({
   if (status === 'success') {
     return (
       <div className="pi-msg-body">
-        <div className="pi-msg-success">
+        <div className="pi-msg-success" role="status">
           <span className="pi-msg-success-icon" aria-hidden="true">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#028a0c" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6.5 9.5 17 4.5 12" /></svg>
           </span>
@@ -328,13 +333,19 @@ export function LeadForm({
             </div>
           ) : (
             /* Figma 10295-76823: a single "Select Property" field, no heading above it. */
-            <button type="button" className="pi-msg-dd-btn" onClick={() => setListOpen((o) => !o)}>
+            <button
+              type="button"
+              className="pi-msg-dd-btn"
+              aria-expanded={listOpen && facilities.length > 0}
+              aria-controls={listOpen && facilities.length > 0 ? listId : undefined}
+              onClick={() => setListOpen((o) => !o)}
+            >
               <span>Select Property</span>
               <ChevronDown size={24} />
             </button>
           )}
           {listOpen && facilities.length > 0 && (
-            <ul className="pi-msg-dd-list">
+            <ul className="pi-msg-dd-list" id={listId}>
               {/* Keyed on the id where there is one: two facilities CAN share
                   a name (a company with two "Storage Outlet - Chino" rows),
                   and a duplicate React key silently drops one from the list. */}
@@ -380,6 +391,8 @@ export function LeadForm({
         <Checkbox
           checked={consent} onChange={setConsent}
           className={`pi-msg-consent${attempted && !consent ? ' pi-msg-consent--error' : ''}`}
+          invalid={attempted && !consent}
+          describedBy={attempted && !consent ? consentErrorId : undefined}
         >
           <span className="pi-msg-consent-text">
             By providing your phone number, you consent to receive informational text messages from {facilityName}.
@@ -387,7 +400,7 @@ export function LeadForm({
           </span>
         </Checkbox>
         {attempted && !consent && (
-          <p className="pi-msg-field-error pi-msg-field-error--consent" role="alert">Please agree to receive messages to continue</p>
+          <p className="pi-msg-field-error pi-msg-field-error--consent" id={consentErrorId} role="alert">Please agree to receive messages to continue</p>
         )}
         <a className="pi-msg-terms" href={termsHref}>Click to see our Terms and Privacy Policy</a>
 

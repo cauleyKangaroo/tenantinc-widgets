@@ -152,7 +152,7 @@ export function SpaceList({
      the tree is a containing block, so it resolves against the viewport.
      The element's own bottom edge is the honest signal, and it needs no
      marker, no containing block and no assumptions about flex. */
-  const listingAreaRef = useRef<HTMLElement>(null);
+  const listingAreaRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = listingAreaRef.current;
     if (!el || typeof IntersectionObserver === 'undefined') return undefined;
@@ -888,9 +888,12 @@ export function SpaceList({
         {showSideAccordions && apLocation === 'left' && sectionPanel}
         {/* --empty: exactly when the views render "No spaces match your
             filters." (loaded, nothing to show) — see .sl-listing-area--empty. */}
-        <main
+        {/* A div, not <main>: an embedded widget can't own the page's one main
+            landmark (the host theme may have its own, or a second instance). */}
+        <div
           className={`sl-listing-area${!loading && visibleUnits.length === 0 ? ' sl-listing-area--empty' : ''}`}
           ref={listingAreaRef}
+          aria-busy={loading}
         >
           {topBar}
           {promoId && (
@@ -930,7 +933,7 @@ export function SpaceList({
               <RichText value={activeFeature.details} className="sl-feature-details-body" />
             </section>
           )}
-        </main>
+        </div>
         {showSideAccordions && apLocation === 'right' && sectionPanel}
       </div>
       {/* Mobile only (CSS): the sidebar is hidden there, so the sections with no

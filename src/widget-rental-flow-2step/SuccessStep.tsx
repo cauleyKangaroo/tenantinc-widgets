@@ -556,7 +556,7 @@ export function SuccessStep({
       {idvEnabled && displayedIdv === 'instore' && (
         <section className="rf-sx-idv rf-sx-idv--instore">
           <div className="rf-sx-idv-instore-main">
-            <h3 className="rf-sx-idv-title rf-sx-idv-title--tick">
+            <h3 aria-level={2} className="rf-sx-idv-title rf-sx-idv-title--tick">
               <TickSingleIcon size={24} className="rf-sx-idv-tick" />
               Verify ID In-Store
             </h3>
@@ -661,7 +661,7 @@ export function SuccessStep({
         ) : passportSelected ? (
           <section className="rf-sx-extra rf-idd">
             <div className="rf-sx-extra-head">
-              <h3 className="rf-sx-extra-title">Passport</h3>
+              <h3 aria-level={2} className="rf-sx-extra-title">Passport</h3>
               {passportAvailable && <Checkbox checked={usePassport} onChange={setUsePassport}>Use passport for ID</Checkbox>}
             </div>
             <p className="rf-sx-idv-lede rf-sx-passport-note">
@@ -682,7 +682,7 @@ export function SuccessStep({
 
       {!oneStep && (
       <section className="rf-sx-extra">
-        <h3 className="rf-sx-extra-title">Additional Information</h3>
+        <h3 aria-level={2} className="rf-sx-extra-title">Additional Information</h3>
 
         {/* .rf2-checks is step 2's column — reused rather than matched by eye,
             so the 4px pitch between checkboxes cannot drift apart again. */}

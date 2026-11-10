@@ -50,7 +50,7 @@ export function CoverageMenu({ children, value, onChange, options = COVERAGE_OPT
         className="ma-link-row ma-link-row--tight"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-controls={listId}
+        aria-controls={open ? listId : undefined}
         onClick={() => setOpen((v) => !v)}
       >
         {children}

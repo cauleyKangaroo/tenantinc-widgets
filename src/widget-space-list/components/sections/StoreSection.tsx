@@ -20,6 +20,7 @@ const strokeProps = {
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
   'aria-hidden': true,
+  focusable: 'false' as const,
 };
 
 function PhoneIcon() {
@@ -78,6 +79,7 @@ function StarRatingInput({ reviewsUrl }: { reviewsUrl?: string }) {
       {[1, 2, 3, 4, 5].map((i) => (
         <button
           key={i}
+          type="button"
           className="sl-pi-star-btn"
           onMouseEnter={() => setHovered(i)}
           onMouseLeave={() => setHovered(0)}
@@ -92,7 +94,7 @@ function StarRatingInput({ reviewsUrl }: { reviewsUrl?: string }) {
           }}
           aria-label={`Rate ${i} star${i > 1 ? 's' : ''}${reviewsUrl ? ' on Google' : ''}`}
         >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill={i <= active ? '#FBBC05' : 'none'} stroke={i <= active ? '#FBBC05' : '#a5b4bf'} strokeWidth="1.5" strokeLinejoin="round">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill={i <= active ? '#FBBC05' : 'none'} stroke={i <= active ? '#FBBC05' : '#a5b4bf'} strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true" focusable="false">
             <path d={path}/>
           </svg>
         </button>
@@ -255,7 +257,7 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
       </div>
 
       {/* ── Send us a Message ── */}
-      <button className="sl-pi-card sl-pi-card--action" onClick={() => setMessageOpen(true)}>
+      <button type="button" className="sl-pi-card sl-pi-card--action" aria-haspopup="dialog" onClick={() => setMessageOpen(true)}>
         <div className="sl-pi-card-header">
           <EnvelopeIcon />
           <span className="sl-pi-card-title">Send us a Message</span>
@@ -281,7 +283,7 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
           {/* No chevron: this opens a modal, it does not expand in place, and a
               chevron promised disclosure it never delivered. Matches #03's
               "See all Hours", which has always been plain text. */}
-          <button className="sl-pi-see-hours" onClick={() => setHoursOpen(true)}>
+          <button type="button" className="sl-pi-see-hours" aria-haspopup="dialog" onClick={() => setHoursOpen(true)}>
             See all Hours
           </button>
         </div>
@@ -334,10 +336,11 @@ export function StoreSection({ phones, socials, hours, scheduleSections, facilit
             className="sl-pi-reservation-input"
             type="text"
             placeholder="Reservation Code"
+            aria-label="Reservation Code"
             value={reservationCode}
             onChange={(e) => setReservationCode(e.target.value)}
           />
-          <button className="sl-pi-reservation-go">Go</button>
+          <button type="button" className="sl-pi-reservation-go">Go</button>
         </div>
       </div>
 

@@ -37,8 +37,9 @@ const widgetEntries = {
   'widget-contact-form':     './src/widget-contact-form/index.tsx',     // #23
   'widget-rental-flow-2step':'./src/widget-rental-flow-2step/index.tsx',// #99 (TBD)
   // The Widget Builder's "external widget settings" iframe app for the
-  // Spacelist-Ordering widget — loaded by spacelist-ordering-settings.html
-  // (repo root), NOT by a Duda page. Unnumbered: not a page widget.
+  // Spacelist-Ordering widget — loaded by dist/spacelist-ordering-settings.html
+  // (emitted by EmitSettingsShell below), NOT by a Duda page. Unnumbered: not a
+  // page widget.
   'settings-spacelist-ordering': './src/settings-spacelist-ordering/index.tsx',
   // Living styleguide for @shared/ui — DEV HARNESS ONLY, never a Duda widget.
   // Deliberately unnumbered so it can't be mistaken for one.
@@ -46,6 +47,29 @@ const widgetEntries = {
   // Hand-built, data-free flows for other devs to build from — DEV HARNESS ONLY.
   'static-screens':          './src/static-screens/index.tsx',
 };
+
+/**
+ * Emits the Widget Builder settings SHELL into dist/ beside its bundle, so the
+ * embed URL is the same family as every widget URL
+ * (…/dist/spacelist-ordering-settings.html) and the bundle is found next to it
+ * with no query params. Duda can only iframe a PAGE, not a bare .js — this is
+ * that page; the source lives at src/settings-spacelist-ordering/shell.html.
+ */
+class EmitSettingsShell {
+  apply(compiler) {
+    compiler.hooks.thisCompilation.tap('EmitSettingsShell', (compilation) => {
+      compilation.hooks.processAssets.tap(
+        { name: 'EmitSettingsShell', stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL },
+        () => {
+          const src = require('fs').readFileSync(
+            path.resolve(__dirname, 'src/settings-spacelist-ordering/shell.html'),
+          );
+          compilation.emitAsset('spacelist-ordering-settings.html', new webpack.sources.RawSource(src));
+        },
+      );
+    });
+  }
+}
 
 module.exports = (_env, argv) => {
   const isDev = argv.mode === 'development';
@@ -110,6 +134,7 @@ module.exports = (_env, argv) => {
       new webpack.DefinePlugin({
         __HB_DEV_HARNESS__: JSON.stringify(isDev),
       }),
+      new EmitSettingsShell(),
     ],
 
     // Source maps in dev only

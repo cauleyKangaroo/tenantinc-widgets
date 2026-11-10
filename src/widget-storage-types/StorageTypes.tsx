@@ -116,7 +116,7 @@ function useIsNarrow(): boolean {
 }
 
 /** Cards are the same in both layouts; only their container differs. */
-function Card({ type }: { type: StorageType }) {
+function Card({ type, level = 3 }: { type: StorageType; level?: 2 | 3 }) {
   // A type with no amenity image gets a drawn gradient rather than a hosted
   // placeholder — nothing to own, nothing to 404. See .st-card-media--empty.
   const image = type.image;
@@ -126,7 +126,9 @@ function Card({ type }: { type: StorageType }) {
         {image ? <img className="st-card-img" src={image} alt={type.imageAlt} loading="lazy" /> : null}
       </div>
       <div className="st-card-body">
-        <h3 className="st-card-title">{type.title}</h3>
+        {/* Stays an <h3> so the theme's H3 styling is untouched; aria-level
+            fixes the outline under the index layout's <h1> (no <h2> between). */}
+        <h3 className="st-card-title" aria-level={level === 3 ? undefined : level}>{type.title}</h3>
         {type.abstract ? <p className="st-card-abstract">{type.abstract}</p> : null}
         <span className="st-card-more">Read more</span>
       </div>
@@ -340,7 +342,7 @@ export function StorageTypes({
         {indexHeader}
         <div className="st-grid">
           {list.map((t) => (
-            <Card type={t} key={t.slug} />
+            <Card type={t} key={t.slug} level={2} />
           ))}
         </div>
       </section>

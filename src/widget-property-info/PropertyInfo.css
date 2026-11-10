@@ -807,6 +807,10 @@ button.pi-lb-img { display: flex; }
   border-radius: 50%;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.15s ease;
+  /* A <button> now (was a span[role=button]) — strip the UA box. */
+  padding: 0;
+  margin: 0;
+  font: inherit;
 }
 .pi-lb-arrow:hover { background: rgba(69, 79, 91, 0.85); }
 .pi-lb-arrow:active { transform: scale(0.94); }

@@ -366,6 +366,20 @@ img.promo-banner-img {
   text-decoration: none;
 }
 
+/* The filter CTA is a <button>; strip the UA chrome so it matches the link.
+   No `font` shorthand — it would beat .promo-bar-cta's font-size on specificity. */
+button.promo-bar-cta {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  line-height: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
 .promo-bar-cta span {
   text-decoration: underline;
   text-underline-offset: 2px;

@@ -67,6 +67,9 @@ function MonthCalendar({
               key={`d-${d}`}
               disabled={disabled}
               className={`hb-cal-cell${disabled ? ' hb-cal-cell--disabled' : ''}${isSel ? ' hb-cal-cell--selected' : ''}`}
+              // A bare "14" does not say which month — the modal shows two.
+              aria-label={`${MONTHS[month]} ${d}, ${year}`}
+              aria-pressed={isSel}
               onClick={() => onSelect(date)}
             >
               {d}

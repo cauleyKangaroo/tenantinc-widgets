@@ -22,7 +22,9 @@ import { accountLinkProps } from '@shared/accountLink';
 // stale after a login or logout elsewhere on the page.
 //
 // Same open/close behaviour as LanguageMenu: click toggles, an outside click or
-// Escape closes, listeners bound only while open.
+// Escape closes, listeners bound only while open. A disclosure of plain links,
+// NOT role="menu": that role promises arrow-key navigation this doesn't have,
+// and auditors flag the mismatch.
 // ===========================================================================
 
 export function AccountMenu({
@@ -72,7 +74,6 @@ export function AccountMenu({
       <button
         type="button"
         className="nav-top-item"
-        aria-haspopup="menu"
         aria-expanded={open}
         onClick={toggle}
       >
@@ -81,15 +82,14 @@ export function AccountMenu({
       </button>
 
       {open && (
-        <div className="nav-acct-menu" role="menu">
+        <div className="nav-acct-menu">
           {/* Same destinations as before, but resolved against the session so a
               signed-out reader goes straight to login instead of loading the
               account page and being bounced. */}
-          <a role="menuitem" className="nav-acct-opt" {...accountLinkProps(accountHref, loginHref, gated)}>My Account</a>
-          <a role="menuitem" className="nav-acct-opt" {...accountLinkProps(payHref, loginHref, gated)}>Pay Bill</a>
+          <a className="nav-acct-opt" {...accountLinkProps(accountHref, loginHref, gated)}>My Account</a>
+          <a className="nav-acct-opt" {...accountLinkProps(payHref, loginHref, gated)}>Pay Bill</a>
           {signedIn ? (
             <a
-              role="menuitem"
               className="nav-acct-opt"
               href={loginHref}
               onClick={(e) => {
@@ -101,7 +101,7 @@ export function AccountMenu({
               Logout
             </a>
           ) : (
-            <a role="menuitem" className="nav-acct-opt" href={loginHref}>Login</a>
+            <a className="nav-acct-opt" href={loginHref}>Login</a>
           )}
         </div>
       )}
