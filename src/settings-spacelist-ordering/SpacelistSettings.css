@@ -16,7 +16,15 @@
   line-height: 1.5;
   /* Duda's panel widths: Small 344 / Medium 688 / Large 963 — fluid between. */
   min-width: 320px;
-  min-height: 100vh;
+  /*
+   * The panel is its OWN scroller. Duda puts this page in an iframe whose own
+   * scrolling is off, so content taller than the panel was simply clipped;
+   * pinning the wrapper to the iframe's height and scrolling inside it works
+   * however the host iframe is configured.
+   */
+  height: 100vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .sos-wrap *, .sos-wrap *::before, .sos-wrap *::after { box-sizing: border-box; }
 
