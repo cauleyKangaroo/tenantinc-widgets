@@ -29,6 +29,7 @@ import {
 } from './icons';
 import { fetchPropertyContact, DEFAULT_PROPERTY_ID } from '@shared/propertyContact';
 import { fetchSitePhone } from '@shared/contentLibrary';
+import { fetchPagePropertyPhone } from '@shared/pagePropertyPhone';
 import { MessageModal } from '@shared/components/MessageModal';
 // Same contact-modal plumbing as #03's Email circle — its creds + lead call.
 import { createLead, fetchFacilityOptions, configureApi, type FacilityOption, type ApiCredProps } from '../widget-property-info/api';
@@ -528,6 +529,10 @@ export function NavigationBar({
   // `Properties` collection row, then the prop/default (this bundle holds no
   // API key — no REST anywhere).
   const [livePhone, setLivePhone] = useState<{ phone: string; digits: string } | null>(null);
+  // On a dynamic PROPERTY page, that property's own number. It outranks the
+  // site's main line AND the `showPhone` toggle: the toggle is for pages with no
+  // property (the homepage), where there is only the site number to hide.
+  const [pagePhone, setPagePhone] = useState<{ phone: string; digits: string } | null>(null);
   // Map circle → Google Maps at the property's coordinates, as #03's Map does.
   const [mapsHref, setMapsHref] = useState('#');
 
@@ -554,6 +559,16 @@ export function NavigationBar({
         }
       })
       .catch((err) => console.error('[NavigationBar] property contact error:', err));
+    /* The page's OWN property, read from Duda rather than the `propertyId`
+       prop, whose default is a stale config id that names no real property —
+       so a static page can never pass for a property page. Read from
+       PropertiesInternal (then Properties), matched by id or slug, picking the
+       "Main" number — see @shared/pagePropertyPhone. */
+    fetchPagePropertyPhone('#02 nav page property')
+      .then((p) => {
+        if (!cancelled && p) setPagePhone(p);
+      })
+      .catch((err) => console.error('[NavigationBar] page property error:', err));
     return () => {
       cancelled = true;
     };
@@ -676,8 +691,12 @@ export function NavigationBar({
     };
   }, []);
 
-  const displayPhone = livePhone?.phone || phone;
-  const telHref = phoneHref ?? `tel:${(livePhone?.digits || displayPhone).replace(/[^0-9+]/g, '')}`;
+  const displayPhone = pagePhone?.phone || livePhone?.phone || phone;
+  const telHref = pagePhone
+    ? `tel:${pagePhone.digits || pagePhone.phone.replace(/[^0-9+]/g, '')}`
+    : phoneHref ?? `tel:${(livePhone?.digits || displayPhone).replace(/[^0-9+]/g, '')}`;
+  // A property page always shows its number; `showPhone` only hides the site's.
+  const phoneVisible = showPhone || !!pagePhone;
   // The SMS / "message" utility item was removed at the client's request — the
   // phone entry above is the only contact number in the bar now. (Live Chat is a
   // separate item, still controlled by `showChat`.)
@@ -906,7 +925,7 @@ export function NavigationBar({
   // Each item is gated by its own visibility toggle from the content menu.
   const topItems = (
     <div className="nav-top-items">
-      {showPhone && (
+      {phoneVisible && (
         <a className="nav-top-item" href={telHref}>
           <PhoneIcon size={24} />
           <span>{displayPhone}</span>
@@ -932,7 +951,7 @@ export function NavigationBar({
   // Inline actions used only when the top bar is OFF (single-bar layout).
   const actions = (
     <div className="nav-actions">
-      {showPhone && (
+      {phoneVisible && (
         <a className="nav-phone" href={telHref}>
           <PhoneIcon size={24} />
           <span>{displayPhone}</span>

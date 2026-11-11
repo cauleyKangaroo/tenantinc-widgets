@@ -255,6 +255,16 @@
         <label><input id="nav-show-paybill" type="checkbox" checked onchange="reinitNavigationBar()" /> Pay Bill</label>
         <label><input id="nav-show-language" type="checkbox" checked onchange="reinitNavigationBar()" /> Language</label>
       </div>
+      <div class="controls-group">
+        <span class="controls-group-label">Page</span>
+        <label>Type:
+          <select id="nav-page-type" onchange="setNavPageType(this.value)">
+            <option value="">Homepage (static)</option>
+            <option value="property">Property page (dynamic, phone (562) 555-0123)</option>
+            <option value="other">Dynamic page (not a property)</option>
+          </select>
+        </label>
+      </div>
     </div>
     <div id="navigation-bar-container" class="widget-container"></div>
   </div>
@@ -1560,6 +1570,56 @@ Special</textarea>
     })();
   </script>
 
+  <!-- ── OPT-IN dynamic property page mock (?mockPage=property) ─────────────
+       Makes this page look like a Duda dynamic PROPERTY page to #02: serves
+       `dmAPI.dynamicPageApi()` (isDynamicPage → true, pageData → the row) and a
+       `Properties` row with its own phone, so the nav's "property phone wins
+       over the Phone toggle" rule can be tried. Other collection names delegate
+       to ?mockCollections=1 when that is on, else read as empty. Toggled by the
+       nav section's "Page" dropdown, which reloads with or without the flag. -->
+  <script>
+    (function () {
+      // 'other' = a dynamic page bound to a NON-property row (e.g. a blog post):
+      // isDynamicPage is true but its id matches no Properties row.
+      var mode = new URLSearchParams(location.search).get('mockPage');
+      if (mode !== 'property' && mode !== 'other') return;
+      var ROW = {
+        id: 'harnessProp1',
+        name: 'Storage Outlet - Bellflower (harness)',
+        Phones: [{ phone: '5625550123', status: 1 }],
+        Address: { address: '10326 Foster Rd', city: 'Bellflower', state: 'CA', zip: '90706', lat: 33.88, lng: -118.12 }
+      };
+      window.dmAPI = window.dmAPI || {};
+      window.dmAPI.dynamicPageApi = function () {
+        return {
+          isDynamicPage: function () { return true; },
+          pageData: function () { return Promise.resolve({ id: mode === 'other' ? 'harnessBlog1' : ROW.id }); }
+        };
+      };
+      var inner = window.dmAPI.loadCollectionsAPI;
+      window.dmAPI.loadCollectionsAPI = function () {
+        var base = inner ? inner() : Promise.resolve(null);
+        return base.then(function (api) {
+          return {
+            data: function (name) {
+              if (name === 'Properties') {
+                return { get: function () {
+                  return Promise.resolve({ name: name, values: [ROW], page: { pageSize: 100, pageNumber: 0, totalPages: 1 } });
+                } };
+              }
+              return api ? api.data(name) : { get: function () {
+                return Promise.resolve({ name: name, values: [], page: { pageSize: 100, pageNumber: 0, totalPages: 1 } });
+              } };
+            }
+          };
+        });
+      };
+      console.log(mode === 'other'
+        ? '[harness dmAPI] non-property dynamic page mock ON (?mockPage=other)'
+        : '[harness dmAPI] property page mock ON (?mockPage=property) — phone (562) 555-0123');
+    })();
+  </script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.7/require.min.js" crossorigin="anonymous"></script>
   <script>
     // Dev bundles are large and served uncompressed, so the default 7s require.js
@@ -1639,6 +1699,19 @@ Special</textarea>
         showLanguage: navChecked('nav-show-language'),
       };
     }
+
+    // Reloads, like ?mockCollections=1: the dmAPI mock has to exist before the
+    // bundles mount, and collection reads are cached for the page's lifetime.
+    function setNavPageType(type) {
+      var url = new URL(location.href);
+      if (type) url.searchParams.set('mockPage', type);
+      else url.searchParams.delete('mockPage');
+      location.href = url.toString();
+    }
+    (function () {
+      var sel = document.getElementById('nav-page-type');
+      if (sel) sel.value = new URLSearchParams(location.search).get('mockPage') || '';
+    })();
 
     function reinitNavigationBar() {
       if (!navigationBarWidget) return;
