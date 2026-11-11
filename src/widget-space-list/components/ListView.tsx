@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Unit, SpaceType, WidgetConfig } from '../types';
-import { groupBySizeSorted, sortUnits, orderTypes } from '../filters';
+import { groupBySizeSorted, orderTypes } from '../filters';
 import { ListCard } from './ListCard';
 
 const TYPE_LABEL: Partial<Record<SpaceType, string>> = {
@@ -27,8 +27,13 @@ function TypeAccordion({ spaceType, units, config }: { spaceType: SpaceType; uni
       </button>
       {open && (
         <div className="sl-accordion-body">
-          {sortUnits(units, config.sortBy).map((u) => (
-            <ListCard key={u.id} size={u.size} units={[u]} config={config} />
+          {/* Grouped into one card per size band, exactly like the storage
+              section — one unit per card repeated the band title down the
+              whole accordion (Bellflower's Parking printed six cards all
+              titled "Large"). ListCard already aggregates: the dimensions
+              become its selectable rows and the price follows the pick. */}
+          {groupBySizeSorted(units, config.sortBy, config.sizeOrder).map(({ size, units: groupUnits }) => (
+            <ListCard key={size} size={size} units={groupUnits} config={config} />
           ))}
         </div>
       )}
