@@ -31,6 +31,9 @@
      two competing scrollbars. */
   html, body { margin: 0; padding: 0; background: #fff; height: 100%; overflow: hidden; }
   #app { height: 100%; }
+  /* A failed bundle load leaves #app empty at full height, which would push
+     the boot error below the clipped viewport — collapse it so the error shows. */
+  #app:empty { display: none; }
   #boot-error {
     font-family: system-ui, sans-serif; font-size: 13px; color: #c81e1e;
     padding: 20px; display: none;

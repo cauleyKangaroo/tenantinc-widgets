@@ -188,8 +188,17 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
           if (Array.isArray(cfg?.sizeOrder)) entry.sizes = cfg.sizeOrder.map(String);
           if (entry.types || entry.sizes) saved[pid] = entry;
         }
-        // Local arrangements the editor already made this session win.
-        setGroupOrders((prev) => ({ ...saved, ...prev }));
+        // Local arrangements the editor already made this session win — but
+        // PER LEVEL, not per property: an editor who touched only the bands
+        // before this read landed must not lose that property's saved TYPE
+        // order (the next Save would then persist the loss).
+        setGroupOrders((prev) => {
+          const merged: Record<string, PropertyOrders> = { ...saved };
+          for (const [pid, local] of Object.entries(prev)) {
+            merged[pid] = { ...saved[pid], ...local };
+          }
+          return merged;
+        });
       })
       .catch((err: Error) => {
         // eslint-disable-next-line no-console
@@ -303,6 +312,36 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
     return order.map((key) => storage.sizes!.find((s) => s.key === key)).filter((s): s is SizeBand => !!s);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupList, savedOrders?.sizes]);
+
+  /** `key` one step up or down within `list` — the Move buttons' half of the
+   *  reordering (keyboard and screen-reader users cannot drag). */
+  const nudged = (list: string[], key: string, delta: -1 | 1): string[] | null => {
+    const idx = list.indexOf(key);
+    const to = idx + delta;
+    if (idx < 0 || to < 0 || to >= list.length) return null;
+    const next = [...list];
+    next.splice(idx, 1);
+    next.splice(to, 0, key);
+    return next;
+  };
+  const nudgeType = (key: string, delta: -1 | 1) => {
+    if (!selectedId) return;
+    const next = nudged(typeOrderList, key, delta);
+    if (next) setGroupOrders((prev) => ({ ...prev, [selectedId]: { ...prev[selectedId], types: next } }));
+  };
+  const nudgeSize = (key: string, delta: -1 | 1) => {
+    if (!selectedId) return;
+    const next = nudged(storageBands.map((s) => s.key), key, delta);
+    if (next) setGroupOrders((prev) => ({ ...prev, [selectedId]: { ...prev[selectedId], sizes: next } }));
+  };
+
+  /** The Move up/down pair every sortable row carries — drag's accessible twin. */
+  const moveButtons = (name: string, index: number, count: number, move: (delta: -1 | 1) => void) => (
+    <span className="sos-mv">
+      <button type="button" aria-label={`Move ${name} up`} disabled={index === 0} onClick={() => move(-1)}>▲</button>
+      <button type="button" aria-label={`Move ${name} down`} disabled={index === count - 1} onClick={() => move(1)}>▼</button>
+    </span>
+  );
 
   /*
    * Both movers reorder the DISPLAYED list, never the raw saved array: a saved
@@ -424,7 +463,7 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
         : !groups.data.length ? <div className="sos-state">This property has no spaces.</div>
           : (
             <div className="sos-rows">
-              {(sortable ? orderedGroups : groups.data).map((g) => (
+              {(sortable ? orderedGroups : groups.data).map((g, gi, gs) => (
                 <React.Fragment key={g.key}>
                   <div
                     className={`sos-row${sortable ? ' sos-row--draggable' : ''}${draggingId === g.key ? ' sos-row--dragging' : ''}`}
@@ -435,8 +474,9 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
                       {g.name}
                       <small>{g.tiers} space{g.tiers === 1 ? '' : 's'}</small>
                     </div>
+                    {sortable && moveButtons(g.name, gi, gs.length, (d) => nudgeType(g.key, d))}
                   </div>
-                  {(sortable ? (g.sizes?.length ? storageBands : []) : g.sizes ?? []).map((s) => (
+                  {(sortable ? (g.sizes?.length ? storageBands : []) : g.sizes ?? []).map((s, si, ss) => (
                     <div
                       className={`sos-row sos-row--child${sortable ? ' sos-row--draggable' : ''}${draggingId === s.key ? ' sos-row--dragging' : ''}`}
                       key={s.key}
@@ -447,6 +487,7 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
                         {s.name}
                         <small>{s.tiers} space{s.tiers === 1 ? '' : 's'}</small>
                       </div>
+                      {sortable && moveButtons(s.name, si, ss.length, (d) => nudgeSize(s.key, d))}
                     </div>
                   ))}
                 </React.Fragment>
@@ -490,7 +531,7 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
               (Demo data until the company read is wired.)
             </p>
             <div className="sos-rows">
-              {orderedCatalogue.map((t) => (
+              {orderedCatalogue.map((t, ti, ts) => (
                 <div
                   className={`sos-row sos-row--draggable${draggingId === t.id ? ' sos-row--dragging' : ''}`}
                   key={t.id}
@@ -502,6 +543,7 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
                     <small>{t.key}</small>
                   </div>
                   {t.coverage && <span className="sos-badge">coverage</span>}
+                  {moveButtons(t.label, ti, ts.length, (d) => setTypeOrder((o) => nudged(o, t.id, d) ?? o))}
                 </div>
               ))}
             </div>

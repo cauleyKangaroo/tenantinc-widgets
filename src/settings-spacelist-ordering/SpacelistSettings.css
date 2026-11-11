@@ -90,6 +90,17 @@
 /* A size band nested under its Storage group. */
 .sos-row--child { margin-left: 28px; }
 
+/* Move up/down — drag's keyboard-operable twin on every sortable row. */
+.sos-mv { display: flex; gap: 4px; }
+.sos-mv button {
+  width: 26px; height: 26px; padding: 0;
+  border: 1px solid var(--line); border-radius: 6px; background: #fff;
+  color: var(--slate); font-size: 10px; line-height: 1; cursor: pointer;
+}
+.sos-mv button:hover:not(:disabled) { border-color: var(--night); color: var(--night); }
+.sos-mv button:focus-visible { outline: 2px solid var(--night); outline-offset: 1px; }
+.sos-mv button:disabled { opacity: .35; cursor: not-allowed; }
+
 /* ── Drag-to-arrange (the catalogue) ── */
 .sos-row--draggable { cursor: grab; user-select: none; }
 .sos-row--draggable:active { cursor: grabbing; }
