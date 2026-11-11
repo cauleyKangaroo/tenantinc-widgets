@@ -380,6 +380,9 @@
 /* The border Josh asked for on "Verify In-Store"; the ID modal's Return button
    reuses this class too. */
 .rf-sx-btn--outline { border: 2px solid var(--color_2, #509e2f); background: #fefefe; color: var(--hb-text-night, #101318); }
+/* "Verify ID Later" on the ID card: border in the site PRIMARY (--color_1),
+   matching "Verify ID Now" beside it. The modal's Return button keeps --color_2. */
+.rf-sx-idv-actions > .rf-sx-btn--outline { border-color: var(--color_1, #10666d); }
 /* The kit's model on all three buttons below: a real BACKGROUND rather than a
    brightness filter. A filter leaves `background` unset, so a host rule like
    the harness's `button:hover { background: #f3f4f6 }` — (0,1,1), outranking a
@@ -440,6 +443,30 @@
   line-height: 1.4;
 }
 .rf-sx-idv-note a { color: inherit; text-decoration: underline; }
+
+/* 1-step ID card, mobile: the two buttons side by side ABOVE the illustration,
+   instead of stacked beneath it. Layout only — desktop is untouched. */
+@media (max-width: 640px) {
+  .rf2-pre-idv .rf-sx-idv-body { flex-direction: column; align-items: stretch; gap: 20px; }
+  .rf2-pre-idv .rf-sx-idv-actions { order: -1; flex: 0 0 auto; flex-direction: row; flex-wrap: wrap; gap: 12px; }
+  /* Status lines (in progress / try again) keep their own full-width row. */
+  .rf2-pre-idv .rf-sx-idv-actions > p { flex: 1 0 100%; margin: 0; }
+  .rf2-pre-idv .rf-sx-idv-actions > .rf-sx-btn { flex: 1 1 0; min-width: 0; }
+  .rf2-pre-idv .rf-sx-illus { flex: 0 0 auto; width: 100%; max-width: 292px; align-self: center; }
+}
+
+/* 1-step in-store card: desktop and mobile copy differ, so each breakpoint
+   shows its own. Mobile = hours label, hours, lede, phone, then one two-line
+   button ("Changed your mind?" over "Verify ID Now"). */
+.rf2-idv-mob { display: none; }
+@media (max-width: 640px) {
+  .rf2-pre-idv .rf2-idv-desk { display: none; }
+  .rf2-pre-idv .rf2-idv-mob { display: block; }
+  .rf2-pre-idv .rf2-idv-mob-lede { margin: 16px 0 0; }
+  .rf2-pre-idv .hb-btn.rf2-idv-back { height: auto; min-height: 50px; padding: 8px 12px; line-height: 1.25; }
+  .rf2-pre-idv .rf2-idv-back-lede { font-size: 14px; font-weight: 400; }
+  .rf2-pre-idv .rf2-idv-back-main { display: block; font-size: 14px; font-weight: 700; }
+}
 
 /* ── ID verification: the in-store branch and the three results ──────────
    Figma 10080-26478 (in-store), 8507-24189 / -24120 / -24130 (results).
