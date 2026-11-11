@@ -1184,37 +1184,52 @@ interface LeaseSetUpResult {
 
 async function postLeaseSetUp(path: string, opts: QuoteOptions): Promise<LeaseSetUpResult> {
   const body = leaseSetUpBody(opts);
-  try {
-    const inner = await sendV1('POST', path, body);
-    if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
-    return { data: inner.data };
-  } catch (err) {
-    if (Object.keys(body).length === 1) throw err; // nothing extra to blame
-    /*
-     * STAGED, not all-or-nothing. The engine refuses promotions beside a
-     * prepay cycle (403 "Payment cycle promotions cannot be combined with
-     * other promotions", verified 2026-11-11), and the old single fallback
-     * answered that by dropping EVERYTHING — cycle, coverage and date
-     * included — so one refused field silently repriced the whole quote as a
-     * bare monthly. The caller now keeps promotions and cycles apart, so this
-     * is the safety net for the next such rule: shed the promotion (and the
-     * offer token that signed its price) first, and only then the identifier-
-     * only last resort. The shed is REPORTED, not silent — the lease must be
-     * made with the same inputs the accepted quote was priced with.
-     */
-    if (body.promotions || body.token) {
-      console.warn('[rental] lease-set-up rejected the full quote — retrying without the promotion/offer token:', err);
-      const { promotions: _p, token: _t, ...rest } = body;
-      try {
-        const inner = await sendV1('POST', path, rest);
-        if (inner.status === 200) return { data: inner.data, pricedWithoutPromotions: true };
-      } catch { /* fall through to the identifier-only quote below */ }
+  /*
+   * ONLY an engine REJECTION sheds anything. sendV1 throws on network and
+   * gateway failures (no envelope to read) and those throws propagate out of
+   * here untouched: a transient failure is no evidence the engine refused the
+   * promotion, and shedding on one would have the caller latch
+   * `pricedWithoutPromotions` and permanently suppress a valid discount
+   * (review finding, 2026-11-12). An envelope with a 4xx status is the engine
+   * speaking — that is what the staged fallback below answers.
+   */
+  const rejected = (inner: { status?: number; msg?: string }): boolean => {
+    if (inner.status === 200) return false;
+    if (typeof inner.status !== 'number' || inner.status >= 500 || inner.status === 429) {
+      // Not a verdict on the payload: gateway trouble (or an envelope with no
+      // status at all). Fail the quote; the caller keeps its previous figure.
+      throw new Error(`lease-set-up POST failed: ${inner.status ?? '?'} ${inner.msg ?? ''}`);
     }
-    console.warn('[rental] lease-set-up rejected the documented extras — re-quoting with the identifier only. Coverage/promo/date will NOT be priced:', err);
-    const inner = await sendV1('POST', path, quoteIdentity(opts));
-    if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
-    return { data: inner.data, pricedWithoutPromotions: !!(body.promotions || body.token) };
+    return true;
+  };
+
+  let inner = await sendV1('POST', path, body);
+  if (!rejected(inner)) return { data: inner.data };
+  if (Object.keys(body).length === 1) {
+    throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`); // nothing extra to blame
   }
+  /*
+   * STAGED, not all-or-nothing. The engine refuses promotions beside a
+   * prepay cycle (403 "Payment cycle promotions cannot be combined with
+   * other promotions", verified 2026-11-11), and the old single fallback
+   * answered that by dropping EVERYTHING — cycle, coverage and date
+   * included — so one refused field silently repriced the whole quote as a
+   * bare monthly. The caller now keeps promotions and cycles apart, so this
+   * is the safety net for the next such rule: shed the promotion (and the
+   * offer token that signed its price) first, and only then the identifier-
+   * only last resort. The shed is REPORTED, not silent — the lease must be
+   * made with the same inputs the accepted quote was priced with.
+   */
+  if (body.promotions || body.token) {
+    console.warn(`[rental] lease-set-up rejected the full quote (${inner.status} ${inner.msg ?? ''}) — retrying without the promotion/offer token`);
+    const { promotions: _p, token: _t, ...rest } = body;
+    inner = await sendV1('POST', path, rest);
+    if (!rejected(inner)) return { data: inner.data, pricedWithoutPromotions: true };
+  }
+  console.warn(`[rental] lease-set-up rejected the documented extras (${inner.status} ${inner.msg ?? ''}) — re-quoting with the identifier only. Coverage/promo/date will NOT be priced.`);
+  inner = await sendV1('POST', path, quoteIdentity(opts));
+  if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
+  return { data: inner.data, pricedWithoutPromotions: !!(body.promotions || body.token) };
 }
 
 /**

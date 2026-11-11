@@ -3321,7 +3321,10 @@ export function RentalFlow2Step({
      */
     if (selection && base === selection && base.promo != null
       && (selection.promotionIds?.length ?? 0) > 0 && !activePromotionIds?.length) {
-      base = { ...base, promo: undefined, online: undefined };
+      // The undiscounted rate stays as the headline — the rail derives both
+      // displayed prices from `online` with no fallback of its own, so
+      // clearing it would blank the price along with the promotion.
+      base = { ...base, promo: undefined, online: base.price };
     }
     const online = base.online ?? base.price;
     if (online == null) return base;
