@@ -1175,6 +1175,25 @@ async function postLeaseSetUp(path: string, opts: QuoteOptions): Promise<Record<
     return inner.data;
   } catch (err) {
     if (Object.keys(body).length === 1) throw err; // nothing extra to blame
+    /*
+     * STAGED, not all-or-nothing. The engine refuses promotions beside a
+     * prepay cycle (403 "Payment cycle promotions cannot be combined with
+     * other promotions", verified 2026-11-11), and the old single fallback
+     * answered that by dropping EVERYTHING — cycle, coverage and date
+     * included — so one refused field silently repriced the whole quote as a
+     * bare monthly. The caller now keeps promotions and cycles apart, so this
+     * is the safety net for the next such rule: shed the promotion (and the
+     * offer token that signed its price) first, and only then the identifier-
+     * only last resort.
+     */
+    if (body.promotions || body.token) {
+      console.warn('[rental] lease-set-up rejected the full quote — retrying without the promotion/offer token:', err);
+      const { promotions: _p, token: _t, ...rest } = body;
+      try {
+        const inner = await sendV1('POST', path, rest);
+        if (inner.status === 200) return inner.data;
+      } catch { /* fall through to the identifier-only quote below */ }
+    }
     console.warn('[rental] lease-set-up rejected the documented extras — re-quoting with the identifier only. Coverage/promo/date will NOT be priced:', err);
     const inner = await sendV1('POST', path, quoteIdentity(opts));
     if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);

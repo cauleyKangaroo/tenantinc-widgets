@@ -2282,6 +2282,29 @@ export function RentalFlow2Step({
   const [paymentCycle, setPaymentCycle] = useState<PaymentCycleKey>('monthly');
 
   /*
+   * Promotions and a prepay cycle are MUTUALLY EXCLUSIVE at the engine:
+   * lease-set-up answers 403 "Payment cycle promotions cannot be combined
+   * with other promotions" when a quote carries both (verified live
+   * 2026-11-11 on a held Bellflower storage unit; each alone prices fine).
+   * Sending both did not merely lose the discount — postLeaseSetUp's
+   * fallback re-quoted with the bare identifier, so picking Quarterly
+   * silently dropped the promotion, the coverage AND the move-in date, and
+   * the rail never moved. That is the "payment cycle does nothing" bug.
+   *
+   * The shopper's cycle choice wins while it is non-monthly; the tier's
+   * promotions — and the offer token that signed their price, which the
+   * engine could not honour alongside the cycle anyway — return the moment
+   * they switch back to monthly. The server remains the authority on the
+   * resulting numbers either way.
+   */
+  const promotionsFor = (cycle: PaymentCycleKey | undefined) =>
+    (cycle ?? 'monthly') === 'monthly'
+      ? { promotionIds: selection?.promotionIds, offerToken: selection?.offerToken }
+      : { promotionIds: undefined, offerToken: undefined };
+  const activePromotionIds = promotionsFor(paymentCycle).promotionIds;
+  const activeOfferToken = promotionsFor(paymentCycle).offerToken;
+
+  /*
    * What the two re-quotes below are made against: the held unit with its
    * hold token, or — in reservation mode, where nothing is ever held — the
    * reserved unit with its reservation id. Same shape, so the effects do not
@@ -2303,9 +2326,9 @@ export function RentalFlow2Step({
       ...quoteAnchor.idOpts,
       insuranceId,
       nokeTier,
-      promotionIds: selection?.promotionIds,
+      promotionIds: activePromotionIds,
       startDate: ymd(moveIn),
-      offerToken: selection?.offerToken,
+      offerToken: activeOfferToken,
       paymentCycle,
     })
       .then((q) => {
@@ -2353,9 +2376,9 @@ export function RentalFlow2Step({
       ...quoteAnchor.idOpts,
       insuranceId,
       nokeTier,
-      promotionIds: selection?.promotionIds,
+      promotionIds: activePromotionIds,
       startDate: ymd(moveIn),
-      offerToken: selection?.offerToken,
+      offerToken: activeOfferToken,
       paymentCycle,
     })
       .then((q) => { if (!cancelled && q) setQuote(q); })
@@ -2419,7 +2442,7 @@ export function RentalFlow2Step({
   const previewKey = previewUnit && quote
     ? [
       previewUnit.id, ymd(moveIn), paymentCycle, quote.totalDue, quote.rent, quote.billDay,
-      selection?.spaceMixId ?? '', (selection?.promotionIds ?? []).join(','),
+      selection?.spaceMixId ?? '', (activePromotionIds ?? []).join(','),
       JSON.stringify(quoteToCosts(quote, ymd(moveIn))), contactKey,
     ].join('|')
     : '';
@@ -2464,7 +2487,7 @@ export function RentalFlow2Step({
       webRate: quote.rent ?? selection?.price,
       totalPaymentAmount: quote.totalDue,
       costs: quoteToCosts(quote, ymd(moveIn)),
-      promotionIds: selection?.promotionIds,
+      promotionIds: activePromotionIds,
       paymentCycle,
       platform: 'website',
     }).then((docs) => {
@@ -3873,7 +3896,9 @@ export function RentalFlow2Step({
                   webRate: quote.rent ?? selection?.price,
                   totalPaymentAmount: quote.totalDue,
                   costs: quoteToCosts(quote, start),
-                  promotionIds: selection?.promotionIds,
+                  // Gated on the cycle THIS payment was made with — the engine
+                  // refuses promotions beside a prepay cycle (see promotionsFor).
+                  promotionIds: promotionsFor(info.paymentCycle).promotionIds,
                   platform: 'website',
                   // The period the Payment Cycle card was left on. Without it
                   // documents/finalize was told 'Monthly' whatever was picked.
@@ -3892,8 +3917,10 @@ export function RentalFlow2Step({
                   nokeTier: info.keyShareTier,
                   /* The tier selection's signed pricing — the lease charges
                      the tier rate only when it sees the same dossier the
-                     quote was priced with. */
-                  offerToken: selection?.offerToken,
+                     quote was priced with. Dropped with the promotions on a
+                     prepay cycle: the dossier signed the promo price, which
+                     the engine will not combine with the cycle discount. */
+                  offerToken: promotionsFor(info.paymentCycle).offerToken,
                   extras: info.extras,
                   idvId: info.idvId,
                   idvRequired: formMode === '1step' && Boolean(idvApi) && idvRequirement === 'required',
