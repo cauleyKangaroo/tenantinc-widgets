@@ -380,6 +380,9 @@
 /* The border Josh asked for on "Verify In-Store"; the ID modal's Return button
    reuses this class too. */
 .rf-sx-btn--outline { border: 2px solid var(--color_2, #509e2f); background: #fefefe; color: var(--hb-text-night, #101318); }
+/* "Verify ID Later" on the ID card: border in the site PRIMARY (--color_1),
+   matching "Verify ID Now" beside it. The modal's Return button keeps --color_2. */
+.rf-sx-idv-actions > .rf-sx-btn--outline { border-color: var(--color_1, #10666d); }
 /* The kit's model on all three buttons below: a real BACKGROUND rather than a
    brightness filter. A filter leaves `background` unset, so a host rule like
    the harness's `button:hover { background: #f3f4f6 }` — (0,1,1), outranking a
