@@ -130,9 +130,24 @@ export function sortUnits(units: Unit[], sortBy: SortBy): Unit[] {
 export function groupBySizeSorted(
   units: Unit[],
   sortBy: SortBy,
+  /** The operator's saved band order (settings panel → the property row's
+   *  `config.sizeOrder`). Outranks `sortBy`'s band direction when present. */
+  sizeOrder?: string[],
 ): { size: UnitSize; units: Unit[] }[] {
   const groups = groupBySize(sortUnits(units, sortBy));
+  if (sizeOrder?.length) return applySavedOrder(groups, sizeOrder, (g) => g.size);
   return sortBy === 'sizeDesc' ? groups.reverse() : groups;
+}
+
+/**
+ * Sort by a SAVED order without replacing the list: entries the order does not
+ * name sink to the end in their existing sequence (a new section appears
+ * rather than vanishes), and names the data no longer has are simply unused.
+ * Array#sort is stable, so ties keep their relative positions.
+ */
+function applySavedOrder<T>(items: T[], saved: string[], keyOf: (item: T) => string): T[] {
+  const rank = new Map(saved.map((key, i) => [key, i]));
+  return [...items].sort((a, b) => (rank.get(keyOf(a)) ?? saved.length) - (rank.get(keyOf(b)) ?? saved.length));
 }
 
 /**
@@ -143,7 +158,14 @@ export function groupBySizeSorted(
  * position at the end — Array#sort is stable, so unnamed types stay in the order
  * they appeared in the data.
  */
-export function orderTypes(types: SpaceType[], first: CategoryOrdering): SpaceType[] {
+export function orderTypes(
+  types: SpaceType[],
+  first: CategoryOrdering,
+  /** The operator's saved section order (settings panel → the property row's
+   *  `config.groupOrder`). Outranks the content-panel radio when present. */
+  groupOrder?: string[],
+): SpaceType[] {
+  if (groupOrder?.length) return applySavedOrder(types, groupOrder, (t) => t);
   const preferred: string[] = first === 'parking' ? ['parking', 'storage'] : ['storage', 'parking'];
   const rank = (t: SpaceType) => {
     const i = preferred.indexOf(t);
@@ -162,9 +184,11 @@ export function orderTypes(types: SpaceType[], first: CategoryOrdering): SpaceTy
 export function typeOptionsFrom(
   units: Unit[],
   first: CategoryOrdering = 'spaces',
+  /** Saved section order — the pills must sequence like the accordions do. */
+  groupOrder?: string[],
 ): { value: SpaceType; label: string }[] {
   const present = Array.from(new Set(units.map((u) => u.type)));
-  return orderTypes(present, first).map((t) => ({
+  return orderTypes(present, first, groupOrder).map((t) => ({
     value: t,
     label: t.charAt(0).toUpperCase() + t.slice(1),
   }));

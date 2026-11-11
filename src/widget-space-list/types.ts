@@ -112,6 +112,12 @@ export type SortBy = 'sizeAsc' | 'sizeDesc' | 'priceAsc' | 'priceDesc';
 export type CategoryOrdering = 'spaces' | 'parking';
 
 export interface WidgetConfig {
+  /** The operator's saved SECTION order (settings panel -> the property row's
+   *  `config.groupOrder`). Present, it outranks `categoryOrdering`. */
+  groupOrder?: string[];
+  /** Saved size-band order within storage (`config.sizeOrder`). Present, it
+   *  outranks `sortBy`'s band direction. */
+  sizeOrder?: string[];
   showInstorePrice: boolean;
   /** Label shown above the in-store strike price ("IN-STORE", "WAS", etc.) */
   instorePriceLabel: string;

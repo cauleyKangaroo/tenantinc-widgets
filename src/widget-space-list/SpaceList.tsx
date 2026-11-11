@@ -10,6 +10,7 @@ import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { PropertyIdProvider, PropertyExtrasProvider, ReviewsProxyProvider } from './propertyContext';
 import { CompanyIdProvider } from './companyContext';
 import { fetchProperties, extractPropertyExtras, type PropertyExtras } from './propertyApi';
+import { fetchOrderConfig, orderConfigFromMessage, type SpacelistOrderConfig } from './orderConfig';
 import {
   FilterState,
   filterUnits,
@@ -221,11 +222,23 @@ export function SpaceList({
   // lives next to the notes/about reads below.
   const [adminFeesText, setAdminFeesText] = useState<string | undefined>(undefined);
 
+  /*
+   * The operator's saved SECTION ordering for this property — the `config`
+   * column on its PropertiesInternal row, written by the Widget Builder
+   * settings panel. Read from the collection on published pages; in the Duda
+   * editor (no dmAPI) it arrives as the panel's postMessage broadcast below,
+   * so a save is visible in the editor immediately, with nothing published.
+   * Null ⇒ the pre-existing behaviour (categoryOrdering radio + sortBy bands).
+   */
+  const [orderConfig, setOrderConfig] = useState<SpacelistOrderConfig | null>(null);
+
   // Section visibility + order are managed entirely in the "Manage accordions"
   // modal (persisted to the collection), not via content-panel isX toggles.
   // Declared after propertyExtras so the sold-out "Call" CTA can carry the same
   // number as the "Call our Storage Experts" card.
   const config: WidgetConfig = {
+    groupOrder: orderConfig?.groupOrder,
+    sizeOrder: orderConfig?.sizeOrder,
     showInstorePrice,
     instorePriceLabel,
     instorePriceMode,
@@ -289,6 +302,28 @@ export function SpaceList({
   // Effective property for this instance: the dynamic-page binding if the editor
   // connected one, else the config.json default.
   const effectivePropertyId = resolvePropertyId({ propertyId }, cfg.propertyId);
+
+  // The saved ordering: the collection row on published pages…
+  useEffect(() => {
+    let cancelled = false;
+    setOrderConfig(null);
+    fetchOrderConfig(effectivePropertyId)
+      .then((cfg_) => { if (!cancelled && cfg_) setOrderConfig(cfg_); })
+      .catch(() => { /* fail-soft — default ordering stands */ });
+    return () => { cancelled = true; };
+  }, [effectivePropertyId]);
+
+  // …and the settings panel's broadcast in the Duda editor, where no dmAPI
+  // exists to re-read anything. Only a structurally valid message for THIS
+  // property applies; see orderConfig.ts for why no origin pinning.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const update = orderConfigFromMessage(event.data);
+      if (update && update.propertyId === effectivePropertyId) setOrderConfig(update.config);
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [effectivePropertyId]);
 
   // The company id is site DATA, not build output: it comes from the one-row
   // `Company` collection so this same bundle can serve every site we spin up from
@@ -673,8 +708,8 @@ export function SpaceList({
    * pills, or the selection could never be changed or cleared.
    */
   const typeOptions = useMemo(
-    () => typeOptionsFrom(units, config.categoryOrdering),
-    [units, config.categoryOrdering],
+    () => typeOptionsFrom(units, config.categoryOrdering, config.groupOrder),
+    [units, config.categoryOrdering, config.groupOrder],
   );
 
   // The promotions the units on the page actually have — none ⇒ the modal

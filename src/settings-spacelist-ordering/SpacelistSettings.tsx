@@ -35,6 +35,8 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { plainText } from '@shared/dudaCollections';
+// The broadcast contract is the space-list widget's — one constant, one shape.
+import { ORDER_CONFIG_MESSAGE_TYPE } from '../widget-space-list/orderConfig';
 import './SpacelistSettings.css';
 
 /*
@@ -349,6 +351,29 @@ export function SpacelistSettings({ siteId = '', elementId = '', page = '' }: Sp
         if (!res.ok || !json?.ok) throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
         // eslint-disable-next-line no-console
         console.log('[spacelist-settings] SAVED', json);
+        /*
+         * Announce the new order to every space-list widget in sight, so the
+         * Duda editor's canvas re-renders IMMEDIATELY — in the editor the
+         * widget has no dmAPI to re-read the row, and nobody should have to
+         * open the published site to see what they just arranged. The canvas
+         * is a SIBLING iframe of this settings panel, reachable only through
+         * window.top's frames collection; every send is best-effort because
+         * cross-origin frames allow nothing but postMessage itself.
+         */
+        const announce = {
+          type: ORDER_CONFIG_MESSAGE_TYPE,
+          propertyId: selectedId,
+          config: json.config ?? { groupOrder: payload.order, ...(payload.sizeOrder ? { sizeOrder: payload.sizeOrder } : {}) },
+        };
+        const targets: Window[] = [window];
+        try { if (window.parent && window.parent !== window) targets.push(window.parent); } catch { /* cross-origin */ }
+        try {
+          const top = window.top;
+          if (top) for (let i = 0; i < top.frames.length; i += 1) targets.push(top.frames[i]);
+        } catch { /* cross-origin top — the parent send above still lands */ }
+        for (const t of targets) {
+          try { t.postMessage(announce, '*'); } catch { /* best-effort */ }
+        }
         setSaveState('saved');
         window.setTimeout(() => setSaveState((s) => (s === 'saved' ? 'idle' : s)), 2500);
       })

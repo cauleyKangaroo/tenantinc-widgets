@@ -46,6 +46,7 @@ export function ListView({ units, config }: { units: Unit[]; config: WidgetConfi
   const orderedTypes = orderTypes(
     Array.from(new Set(units.map((u) => u.type))) as SpaceType[],
     config.categoryOrdering,
+    config.groupOrder,
   );
 
   return (
@@ -53,7 +54,7 @@ export function ListView({ units, config }: { units: Unit[]; config: WidgetConfi
       {orderedTypes.map((spaceType) => {
         const typeUnits = units.filter((u) => u.type === spaceType);
         if (spaceType === 'storage') {
-          return groupBySizeSorted(typeUnits, config.sortBy).map(({ size, units: groupUnits }) => (
+          return groupBySizeSorted(typeUnits, config.sortBy, config.sizeOrder).map(({ size, units: groupUnits }) => (
             <ListCard key={size} size={size} units={groupUnits} config={config} />
           ));
         }

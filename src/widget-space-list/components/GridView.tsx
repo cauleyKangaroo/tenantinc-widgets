@@ -41,7 +41,7 @@ function StorageAccordions({ units, config }: { units: Unit[]; config: WidgetCon
 
   return (
     <>
-      {groupBySizeSorted(units, config.sortBy).map(({ size, units: groupUnits }) => {
+      {groupBySizeSorted(units, config.sortBy, config.sizeOrder).map(({ size, units: groupUnits }) => {
         const isOpen = open[size];
         return (
           <div key={size} className={`sl-accordion${isOpen ? ' expanded' : ''}`}>
@@ -101,6 +101,7 @@ export function GridView({ units, config }: { units: Unit[]; config: WidgetConfi
   const orderedTypes = orderTypes(
     Array.from(new Set(units.map((u) => u.type))) as SpaceType[],
     config.categoryOrdering,
+    config.groupOrder,
   );
 
   return (
