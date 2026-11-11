@@ -2292,17 +2292,36 @@ export function RentalFlow2Step({
    * the rail never moved. That is the "payment cycle does nothing" bug.
    *
    * The shopper's cycle choice wins while it is non-monthly; the tier's
-   * promotions — and the offer token that signed their price, which the
-   * engine could not honour alongside the cycle anyway — return the moment
-   * they switch back to monthly. The server remains the authority on the
-   * resulting numbers either way.
+   * promotions return the moment they switch back to monthly. The offer
+   * token goes WITH the promotions it signed — but an offer with no
+   * promotions keeps its token on every cycle, because that token is also
+   * what authorises the tier's own rate (dropping it reprices the tier at
+   * the unit's base rent; see the lease call's offerToken note). The server
+   * remains the authority on the resulting numbers either way.
+   *
+   * `pricedWithoutPromotions` is the quote telling us the engine refused
+   * the promotions/token and the STAGED retry priced without them (see
+   * postLeaseSetUp). From that moment the preview and the lease must stay
+   * on the same inputs the accepted quote used — a document or a charge
+   * made with inputs the shown total was not priced with is a mismatch.
    */
   const promotionsFor = (cycle: PaymentCycleKey | undefined) =>
     (cycle ?? 'monthly') === 'monthly'
       ? { promotionIds: selection?.promotionIds, offerToken: selection?.offerToken }
-      : { promotionIds: undefined, offerToken: undefined };
-  const activePromotionIds = promotionsFor(paymentCycle).promotionIds;
-  const activeOfferToken = promotionsFor(paymentCycle).offerToken;
+      : {
+        promotionIds: undefined,
+        offerToken: selection?.promotionIds?.length ? undefined : selection?.offerToken,
+      };
+  /* STICKY once set, per selection: a fresh quote priced without the refused
+     promotions carries no flag of its own, so without memory the next
+     re-quote would try them again and every later call would flip-flop. A new
+     selection is a new offer and gets a clean slate. */
+  const [promosRefused, setPromosRefused] = useState(false);
+  useEffect(() => { setPromosRefused(false); }, [selection]);
+  const pricingFor = (cycle: PaymentCycleKey | undefined) =>
+    promosRefused ? { promotionIds: undefined, offerToken: undefined } : promotionsFor(cycle);
+  const activePromotionIds = pricingFor(paymentCycle).promotionIds;
+  const activeOfferToken = pricingFor(paymentCycle).offerToken;
 
   /*
    * What the two re-quotes below are made against: the held unit with its
@@ -2333,8 +2352,11 @@ export function RentalFlow2Step({
     })
       .then((q) => {
         if (cancelled) return;
-        if (q) { setQuote(q); setQuoteFailed(false); }
-        else { setQuote(undefined); setQuoteFailed(true); }
+        if (q) {
+          setQuote(q);
+          setQuoteFailed(false);
+          if (q.pricedWithoutPromotions) setPromosRefused(true);
+        } else { setQuote(undefined); setQuoteFailed(true); }
       })
       .catch((err) => {
         console.warn(`${logTag} hold-aware quote failed — failing closed:`, err);
@@ -2381,7 +2403,11 @@ export function RentalFlow2Step({
       offerToken: activeOfferToken,
       paymentCycle,
     })
-      .then((q) => { if (!cancelled && q) setQuote(q); })
+      .then((q) => {
+        if (cancelled || !q) return;
+        setQuote(q);
+        if (q.pricedWithoutPromotions) setPromosRefused(true);
+      })
       // Keep the previous quote on failure rather than blanking the rail: the
       // shopper changed a plan, not the unit, and the old total is still the
       // last figure the API actually stood behind.
@@ -3283,8 +3309,20 @@ export function RentalFlow2Step({
    * pair, not what gets charged.
    */
   const railSelection = ((): SelectionContext | undefined => {
-    const base = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
+    let base = selection ?? (previewContent ? PREVIEW_SELECTION : undefined);
     if (!base) return base;
+    /*
+     * A promotion that is NOT being priced must not stay on the billboard: a
+     * prepay cycle (or the engine refusing the combination) removes it from
+     * the quote and the lease, and a rail still reading "50% off" beside the
+     * promo rate would advertise money nobody is getting. Stripped only when
+     * the REAL selection's promotions are suppressed — the harness preview's
+     * demo selection keeps its badge. Back on monthly, the offer returns.
+     */
+    if (selection && base === selection && base.promo != null
+      && (selection.promotionIds?.length ?? 0) > 0 && !activePromotionIds?.length) {
+      base = { ...base, promo: undefined, online: undefined };
+    }
     const online = base.online ?? base.price;
     if (online == null) return base;
     /* A real promotion on the offer outranks the calculated figure: the API's
@@ -3897,8 +3935,9 @@ export function RentalFlow2Step({
                   totalPaymentAmount: quote.totalDue,
                   costs: quoteToCosts(quote, start),
                   // Gated on the cycle THIS payment was made with — the engine
-                  // refuses promotions beside a prepay cycle (see promotionsFor).
-                  promotionIds: promotionsFor(info.paymentCycle).promotionIds,
+                  // refuses promotions beside a prepay cycle — and on whatever
+                  // the accepted quote was actually priced with (pricingFor).
+                  promotionIds: pricingFor(info.paymentCycle).promotionIds,
                   platform: 'website',
                   // The period the Payment Cycle card was left on. Without it
                   // documents/finalize was told 'Monthly' whatever was picked.
@@ -3920,7 +3959,7 @@ export function RentalFlow2Step({
                      quote was priced with. Dropped with the promotions on a
                      prepay cycle: the dossier signed the promo price, which
                      the engine will not combine with the cycle discount. */
-                  offerToken: promotionsFor(info.paymentCycle).offerToken,
+                  offerToken: pricingFor(info.paymentCycle).offerToken,
                   extras: info.extras,
                   idvId: info.idvId,
                   idvRequired: formMode === '1step' && Boolean(idvApi) && idvRequirement === 'required',

@@ -889,6 +889,14 @@ export interface MoveInQuote {
   /** `details.rent` — the NON-prorated monthly rate, which is what
    *  documents/finalize means by `web_rate`. Not the move-in total. */
   rent?: number;
+  /**
+   * The engine refused the promotions/offer token and this quote was priced
+   * WITHOUT them (postLeaseSetUp's staged retry). The caller must then keep
+   * them out of the lease preview and the lease too — a document or a charge
+   * built with inputs the shown quote was not priced with is a mismatch the
+   * engine may reject, or worse, honour.
+   */
+  pricedWithoutPromotions?: boolean;
 }
 
 interface ApiUnitRow {
@@ -1167,12 +1175,19 @@ function cycleQuery(opts: QuoteOptions): string {
  * the balance. The fallback below is therefore belt-and-braces rather than an
  * expected path; if the warning ever appears, the endpoint changed.
  */
-async function postLeaseSetUp(path: string, opts: QuoteOptions): Promise<Record<string, unknown> | undefined> {
+interface LeaseSetUpResult {
+  data: Record<string, unknown> | undefined;
+  /** True when the quote only priced after the promotions/offer token were
+   *  shed — the caller must keep them out of the preview and the lease too. */
+  pricedWithoutPromotions?: boolean;
+}
+
+async function postLeaseSetUp(path: string, opts: QuoteOptions): Promise<LeaseSetUpResult> {
   const body = leaseSetUpBody(opts);
   try {
     const inner = await sendV1('POST', path, body);
     if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
-    return inner.data;
+    return { data: inner.data };
   } catch (err) {
     if (Object.keys(body).length === 1) throw err; // nothing extra to blame
     /*
@@ -1184,20 +1199,21 @@ async function postLeaseSetUp(path: string, opts: QuoteOptions): Promise<Record<
      * bare monthly. The caller now keeps promotions and cycles apart, so this
      * is the safety net for the next such rule: shed the promotion (and the
      * offer token that signed its price) first, and only then the identifier-
-     * only last resort.
+     * only last resort. The shed is REPORTED, not silent — the lease must be
+     * made with the same inputs the accepted quote was priced with.
      */
     if (body.promotions || body.token) {
       console.warn('[rental] lease-set-up rejected the full quote — retrying without the promotion/offer token:', err);
       const { promotions: _p, token: _t, ...rest } = body;
       try {
         const inner = await sendV1('POST', path, rest);
-        if (inner.status === 200) return inner.data;
+        if (inner.status === 200) return { data: inner.data, pricedWithoutPromotions: true };
       } catch { /* fall through to the identifier-only quote below */ }
     }
     console.warn('[rental] lease-set-up rejected the documented extras — re-quoting with the identifier only. Coverage/promo/date will NOT be priced:', err);
     const inner = await sendV1('POST', path, quoteIdentity(opts));
     if (inner.status !== 200) throw new Error(`lease-set-up POST failed: ${inner.status} ${inner.msg ?? ''}`);
-    return inner.data;
+    return { data: inner.data, pricedWithoutPromotions: !!(body.promotions || body.token) };
   }
 }
 
@@ -1215,8 +1231,11 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
   if (holdToken && shouldUseProxyWrites(ctx)) return fetchHeldQuoteViaProxy(ctx, unit, holdToken);
   const path = `companies/${ctx.companyId}/units/${unit.id}/lease-set-up`;
   let data: Record<string, unknown> | undefined;
+  let pricedWithoutPromotions: boolean | undefined;
   if ((holdToken || opts.reservationId) && writesEnabled(ctx)) {
-    data = await postLeaseSetUp(path, opts);
+    const result = await postLeaseSetUp(path, opts);
+    data = result.data;
+    pricedWithoutPromotions = result.pricedWithoutPromotions;
   } else if (opts.reservationId) {
     // No writes here: the GET takes reservation_id as a query param (verified
     // live 2026-10-13) and prices the reserved unit, without the extras.
@@ -1243,6 +1262,7 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
     unitNumber: unit.number,
     totalDue: payable,
     totalTax: inv.total_tax ?? 0,
+    ...(pricedWithoutPromotions ? { pricedWithoutPromotions } : {}),
     billDay: typeof details?.bill_day === 'number' ? details.bill_day : undefined,
     rent: typeof details?.rent === 'number' ? details.rent : undefined,
     lines: (inv.Detail ?? [])

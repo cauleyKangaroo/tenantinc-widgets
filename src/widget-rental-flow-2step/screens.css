@@ -451,7 +451,15 @@
   .rf2-pre-idv .rf-sx-idv-actions { order: -1; flex: 0 0 auto; flex-direction: row; flex-wrap: wrap; gap: 12px; }
   /* Status lines (in progress / try again) keep their own full-width row. */
   .rf2-pre-idv .rf-sx-idv-actions > p { flex: 1 0 100%; margin: 0; }
-  .rf2-pre-idv .rf-sx-idv-actions > .rf-sx-btn { flex: 1 1 0; min-width: 0; }
+  /* Zero-basis buttons can shrink below their labels, and the shared button
+     keeps white-space: nowrap — on narrow phones "Continue Verification"
+     beside "Verify ID Later" overflowed into the gap. Let the label wrap and
+     the button grow downward instead. */
+  .rf2-pre-idv .rf-sx-idv-actions > .rf-sx-btn {
+    flex: 1 1 0; min-width: 0;
+    min-height: 50px; height: auto;
+    white-space: normal; overflow-wrap: anywhere;
+  }
   .rf2-pre-idv .rf-sx-illus { flex: 0 0 auto; width: 100%; max-width: 292px; align-self: center; }
 }
 
