@@ -231,9 +231,11 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
               <TickSingleIcon size={24} className="rf-sx-idv-tick" />
               Verify ID In-Store
             </h3>
-            <p className="rf-sx-idv-lede" role="status">
+            <p className="rf-sx-idv-lede rf2-idv-desk" role="status">
               You&rsquo;ll receive your access code once your ID is verified. Bring your ID to the store on move-in day or call the store for help getting access.
             </p>
+            {/* Mobile only: the hours get their own label, and the lede follows them. */}
+            <p className="rf-sx-idv-lede rf2-idv-mob">In-Store ID Verification Hours:</p>
             <div className="rf-sx-idv-row">
               <ClockGlyph size={24} className="rf-sx-idv-ico" />
               <div>
@@ -243,6 +245,9 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
                 ))}
               </div>
             </div>
+            <p className="rf-sx-idv-lede rf2-idv-mob rf2-idv-mob-lede" role="status">
+              Bring in your ID upon move-in or call the store to get access.
+            </p>
             <div className="rf-sx-idv-row rf-sx-idv-row--mid">
               <PhoneGlyph size={24} className="rf-sx-idv-ico" />
               {phoneHref(config.facilityPhone) && config.facilityPhone
@@ -251,8 +256,12 @@ export function OneStepIdv({ config, contact, onReady, onDetails, showErrors = f
             </div>
           </div>
           <div className="rf-sx-idv-instore-aside rf2-idv-aside">
-            <p className="rf-sx-idv-strong">Changed your mind?</p>
-            <Button tone="secondary" className="rf-sx-btn rf2-idv-primary" onClick={() => setLater(false)}>Verify ID Now</Button>
+            <p className="rf-sx-idv-strong rf2-idv-desk">Changed your mind?</p>
+            <Button tone="secondary" className="rf-sx-btn rf2-idv-primary rf2-idv-back" onClick={() => setLater(false)}>
+              {/* Mobile folds "Changed your mind?" into the button as a lede line. */}
+              <span className="rf2-idv-mob rf2-idv-back-lede">Changed your mind?</span>
+              <span className="rf2-idv-back-main">Verify ID Now</span>
+            </Button>
           </div>
         </div>
       ) : (
