@@ -800,6 +800,8 @@
 .rf-idd-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 360px) { .rf-idd-pair { grid-template-columns: 1fr; } }
 /* One-step: the complete card, then the notice and the details under it. */
+/* 1-step "ID Verified" card: ringed in the site PRIMARY (--color_1). */
+.rf2-pre-idv.rf-sx-idv--done { border: 2px solid var(--color_1, #0f6369); }
 .rf2-pre-idv-after { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }
 .rf2-pre-idv-after .rf-sx-idv-current { margin: 0; }
 /* A <button>: it changes what is on the page and goes nowhere, so a link would
