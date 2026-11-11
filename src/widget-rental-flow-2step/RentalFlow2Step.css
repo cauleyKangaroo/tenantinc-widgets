@@ -768,7 +768,7 @@
   text-align: left;
   cursor: pointer;
   background: #fff;
-  border: 2px solid var(--color_2, #509e2f);
+  border: 2px solid var(--color_1, #0f6369);
   /* The kit's button radius, not a number of its own — this control sits in a
      column of buttons and was the only 4px corner among them. */
   border-radius: var(--hb-button-radius, 8px);
@@ -871,7 +871,7 @@
   background: #fff; border: none;
   /* GREEN, matching the control's own border — the frame draws this divider in
      #509E2F (Figma 8508-32281), not the grey hairline used between list rows. */
-  border-left: 2px solid var(--color_2, #509e2f);
+  border-left: 2px solid var(--color_1, #0f6369);
   color: #101318; cursor: pointer;
 }
 .rf2-chev-down { transform: rotate(90deg); transition: transform 0.15s; }
@@ -1111,7 +1111,7 @@
    this section's chrome. `outline-offset: -2px` draws it just inside the edge,
    where the border sat, and outlines follow border-radius, so the 16px corner
    is kept. */
-.rf2-agree--on { border-color: var(--hb-cta, #f45f30); }
+.rf2-agree--on { border-color: var(--color_1, #0f6369); }
 .rf2-agree-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 0 20px; }
 /* Long label by default, short one on mobile — see the note at the call site. */
 .rf2-link-short { display: none; }
@@ -1372,7 +1372,7 @@
   line-height: 22px;
 }
 
-.rf2-autopay--on { border-color: var(--color_2, #509e2f); }
+.rf2-autopay--on { border-color: var(--color_1, #0f6369); }
 /* Payment Cycle: outlined once the shopper picks a period, in the Duda theme's
    PRIMARY (--color_1; #0f6369 is the site's own Primary, for the harness). The
    2px transparent border is already there, so the box does not move. */
