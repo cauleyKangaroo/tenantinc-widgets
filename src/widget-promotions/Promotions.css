@@ -108,12 +108,56 @@ img.promo-banner-img {
   border-radius: 16px;
   box-shadow: 0px 4px 10px 3px rgba(71, 84, 116, 0.1);
   background: var(--color_1, #509e2f);
-  color: #fff;
+  /* The bar's ink, as a variable so a style variant flips the title, the CTA,
+     both icons and the focus ring in one declaration. The children used to
+     hardcode #fff, which is invisible on the dashed variants — they have no
+     background to sit on. Muted is the info icon at rest. */
+  --promo-fg: #fff;
+  --promo-fg-muted: rgba(255, 255, 255, 0.85);
+  color: var(--promo-fg);
   padding: 30px;
   overflow: hidden;
   display: flex;
   align-items: stretch;
   justify-content: flex-start;
+}
+
+/* ── Bar styles (Duda "Style 1-4" dropdowns, applied by position) ──────────
+   Four options, chosen per slot by the editor: solid or dashed, in the site's
+   primary colour or near-black. The Nth bar takes slot (N mod 4) — see
+   PromoBars in Promotions.tsx.
+
+   "Primary" is --color_1, the site's own colour, so these follow a rebrand
+   without a rebuild. Solid primary is the bar the widget has always drawn, and
+   is also what an unset dropdown falls back to, so nothing published today
+   changes appearance.
+
+   The dashed pair have no background to carry a shadow, so they drop it and
+   take dark ink instead. box-sizing is border-box for everything inside
+   .promo-wrapper, so the 3px border eats into the 30px padding rather than
+   making the bar wider than its flex-basis — the 2/3/4-across splits still
+   add up to exactly one row. */
+.promo-bar--solid-primary {
+  background: var(--color_1, #509e2f);
+}
+
+.promo-bar--solid-black {
+  background: #101318;
+}
+
+.promo-bar--dashed-primary,
+.promo-bar--dashed-black {
+  background: transparent;
+  box-shadow: none;
+  border: 3px dashed currentColor;
+  --promo-fg: #101318;
+  --promo-fg-muted: rgba(16, 19, 24, 0.75);
+}
+
+/* The border is `currentColor` above so it tracks the ink; only the primary
+   variant needs its own, since there the border and the text differ. */
+.promo-bar--dashed-primary {
+  border-color: var(--color_1, #509e2f);
 }
 
 /* Even splits. Basis subtracts the gaps so N bars fit exactly one row. */
@@ -319,13 +363,13 @@ img.promo-banner-img {
   background: none;
   border: none;
   padding: 0;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--promo-fg-muted, rgba(255, 255, 255, 0.85));
   cursor: pointer;
   transition: color 0.15s;
 }
 
 .promo-bar-info:hover {
-  color: #ffffff;
+  color: var(--promo-fg, #ffffff);
 }
 
 /* HOST-THEME GUARD. A bare `button:hover { background: … }` on the host page
@@ -347,7 +391,7 @@ img.promo-banner-img {
 /* Keyboard focus still needs to be visible — it just must not be a background.
    :focus-visible so a mouse click doesn't leave a ring behind. */
 .promo-bar-info:focus-visible {
-  outline: 2px solid #ffffff;
+  outline: 2px solid var(--promo-fg, #ffffff);
   outline-offset: 2px;
 }
 
@@ -360,7 +404,7 @@ img.promo-banner-img {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #fff;
+  color: var(--promo-fg, #fff);
   font-size: 18px;
   font-weight: 400;
   text-decoration: none;

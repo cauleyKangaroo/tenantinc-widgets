@@ -27,6 +27,40 @@ import promoBannerMobile from './assets/promo-banner-mobile.png';
 
 interface BarItem { id: string; title: string; info?: string; url: string; ctaLabel: string; }
 
+/**
+ * The four values on the Duda "Style 1-4" dropdowns. "Primary" is the site's
+ * own `--color_1`, so a rebrand moves the bars with it; "Black" is the design
+ * system's #101318, the same near-black the other widgets use.
+ */
+export type PromoStyle = 'solidP' | 'solidB' | 'dashedP' | 'dashedB';
+
+/** Dropdown value -> modifier class. Kebab-case to match the rest of the file. */
+const PROMO_STYLE_CLASS: Record<PromoStyle, string> = {
+  solidP:  'promo-bar--solid-primary',
+  solidB:  'promo-bar--solid-black',
+  dashedP: 'promo-bar--dashed-primary',
+  dashedB: 'promo-bar--dashed-black',
+};
+
+/** Unset dropdown -> the bar the widget has always drawn (solid primary). */
+const DEFAULT_PROMO_STYLE: PromoStyle = 'solidP';
+
+/**
+ * A Duda dropdown hands over the option's VALUE as a string, but an instance
+ * saved before these fields existed sends nothing at all, and a hand-edited JS
+ * tab can send anything. Unknown or empty falls back to solid primary rather
+ * than emitting a class with no rule behind it, so a bad value degrades to
+ * today's bar instead of an unstyled one.
+ */
+function promoStyle(v: unknown): PromoStyle {
+  const k = String(v ?? '').trim().toLowerCase();
+  return (Object.keys(PROMO_STYLE_CLASS) as PromoStyle[])
+    .find((s) => s.toLowerCase() === k) ?? DEFAULT_PROMO_STYLE;
+}
+
+/** How many style slots there are, and therefore when the pattern repeats. */
+const STYLE_CYCLE = 4;
+
 /** Max bars shown at once; also the carousel's page size. */
 /**
  * Bars visible at once on DESKTOP: 1 fills the row, 2 split 50/50, 3 split
@@ -131,7 +165,7 @@ const PLACEHOLDER_INFO =
   'convallis. Sed ut vulputate nisi. Integer in felis sed leo vestibulum venenatis. ' +
   'Suspendisse quis arcu sem.';
 
-function PromoBarItem({ item }: { item: BarItem }) {
+function PromoBarItem({ item, styleClass }: { item: BarItem; styleClass: string }) {
   // A bar with no explicit link filters the Space List to this promo's
   // qualifying units and scrolls to it; a real URL is left to navigate.
   const isFilterCta = !item.url || item.url === '#';
@@ -142,7 +176,7 @@ function PromoBarItem({ item }: { item: BarItem }) {
   const [infoOpen, setInfoOpen] = useState(false);
 
   return (
-    <div className="promo-bar">
+    <div className={`promo-bar ${styleClass}`}>
       <div className="promo-bar-inner">
         {/* Tag + title group so the info icon can sit hard right (Figma 6242-44608). */}
         <div className="promo-bar-titlerow">
@@ -199,7 +233,14 @@ function PromoBarItem({ item }: { item: BarItem }) {
   );
 }
 
-function PromoBars({ items }: { items: BarItem[] }) {
+function PromoBars({ items, styles }: { items: BarItem[]; styles: PromoStyle[] }) {
+  /* Style by POSITION, never by promotion: the editor picks Style 1-4 and the
+     Nth bar takes the (N mod 4)th, so a fifth promotion repeats the first.
+     Position is the full-list index in both branches below — the carousel
+     mounts every promotion in one track rather than a window, so a bar keeps
+     its style as the row slides. */
+  const styleClass = (i: number) => PROMO_STYLE_CLASS[styles[i % STYLE_CYCLE]];
+
 
   /* How many fit at once. The two boundaries are the CSS's own — 560px is
      where the bars used to stack vertically, 900px where three and four across
@@ -229,8 +270,8 @@ function PromoBars({ items }: { items: BarItem[] }) {
   if (!paged) {
     return (
       <div className="promo-bars" data-cols={Math.min(items.length, visibleCount)}>
-        {items.map((item) => (
-          <PromoBarItem key={item.id} item={item} />
+        {items.map((item, i) => (
+          <PromoBarItem key={item.id} item={item} styleClass={styleClass(i)} />
         ))}
       </div>
     );
@@ -264,8 +305,8 @@ function PromoBars({ items }: { items: BarItem[] }) {
         >
           {/* Every promotion is mounted, not just the visible window — that is
               what lets one transform carry the whole row past the edge. */}
-          {items.map((item) => (
-            <PromoBarItem key={item.id} item={item} />
+          {items.map((item, i) => (
+            <PromoBarItem key={item.id} item={item} styleClass={styleClass(i)} />
           ))}
         </div>
       </div>
@@ -347,6 +388,23 @@ export interface PromotionsProps extends ApiCredProps {
   /** Optional fine-print shown on the info icon's tooltip. */
   barInfo?: string;
 
+  /**
+   * Duda "Style 1-4" dropdowns — which bar style each POSITION uses, not which
+   * promotion. The Nth bar takes style (N mod 4), so the editor can set e.g.
+   * solid primary / dashed black / solid black / dashed primary and a fifth
+   * promotion starts the pattern again.
+   *
+   * Values are the dropdown's own: 'solidP' | 'solidB' | 'dashedP' | 'dashedB'.
+   * Typed loosely because Duda hands over a plain string and an instance saved
+   * before these fields existed sends nothing — see promoStyle().
+   * All four unset = four solid primary bars, which is what #06 has always
+   * drawn, so an existing published instance is unchanged.
+   */
+  style1?: PromoStyle | string;
+  style2?: PromoStyle | string;
+  style3?: PromoStyle | string;
+  style4?: PromoStyle | string;
+
   // ── Dynamic pages ──
   /**
    * Content-menu field connected to `Properties > id` — whose promotions to show.
@@ -388,6 +446,10 @@ export function Promotions({
   barUrl = '#',
   barCtaLabel = 'See Qualifying Units',
   // `barInfo` is accepted but unread — the bars are API-driven only; see barItems.
+  style1,
+  style2,
+  style3,
+  style4,
   propertyId,
   companyId,
   spaceGroupId,
@@ -534,9 +596,12 @@ export function Promotions({
   // No promotions → render nothing rather than an empty green bar.
   if (!barItems.length) return null;
 
+  // The four slots in editor order. Normalised here, once, rather than per bar.
+  const barStyles = [style1, style2, style3, style4].map(promoStyle);
+
   return (
     <div className="promo-wrapper">
-      <PromoBars items={barItems} />
+      <PromoBars items={barItems} styles={barStyles} />
     </div>
   );
 }

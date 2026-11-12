@@ -454,6 +454,42 @@
             <option value="6">6 — paginates</option>
           </select>
         </label>
+        <label>
+          Style 1:
+          <select id="pr-style1" onchange="reinitPromotions()">
+              <option value="solidP" selected>Solid Primary</option>
+              <option value="solidB">Solid Black</option>
+              <option value="dashedP">Dashed Primary</option>
+              <option value="dashedB">Dashed Black</option>
+          </select>
+        </label>
+        <label>
+          Style 2:
+          <select id="pr-style2" onchange="reinitPromotions()">
+              <option value="solidP" selected>Solid Primary</option>
+              <option value="solidB">Solid Black</option>
+              <option value="dashedP">Dashed Primary</option>
+              <option value="dashedB">Dashed Black</option>
+          </select>
+        </label>
+        <label>
+          Style 3:
+          <select id="pr-style3" onchange="reinitPromotions()">
+              <option value="solidP" selected>Solid Primary</option>
+              <option value="solidB">Solid Black</option>
+              <option value="dashedP">Dashed Primary</option>
+              <option value="dashedB">Dashed Black</option>
+          </select>
+        </label>
+        <label>
+          Style 4:
+          <select id="pr-style4" onchange="reinitPromotions()">
+              <option value="solidP" selected>Solid Primary</option>
+              <option value="solidB">Solid Black</option>
+              <option value="dashedP">Dashed Primary</option>
+              <option value="dashedB">Dashed Black</option>
+          </select>
+        </label>
       </div>
     </div>
   </div>
@@ -2066,6 +2102,10 @@ Special</textarea>
         bannerImage: url || undefined,
         bannerImageMobile: mobileUrl || undefined,
         demoBars: count || undefined,
+        style1: document.getElementById('pr-style1').value,
+        style2: document.getElementById('pr-style2').value,
+        style3: document.getElementById('pr-style3').value,
+        style4: document.getElementById('pr-style4').value,
       };
     }
 
