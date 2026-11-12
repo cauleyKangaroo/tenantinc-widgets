@@ -422,6 +422,15 @@ export interface SpaceListProps extends ApiCredProps {
    * the value given to #03 or the two bars will disagree. Default 0.
    */
   stickyOffsetTop?: number;
+  /**
+   * Desktop: keep the accordion sidebar, the filter bar and the current
+   * section's header in view while the listing scrolls past. Off by default —
+   * every existing instance behaves exactly as it did before. Separate from
+   * `stickyFilterBar`, which is the mobile pinned bar and unaffected by this.
+   *
+   * `boolean | string` because a Duda toggle arrives as 'true'/'false'.
+   */
+  enableSticky?: boolean | string;
 
   // ── AP section visibility toggles ──────────────────────────────────────────
   // Vestigial: SectionAccordion treats every registered section as a candidate

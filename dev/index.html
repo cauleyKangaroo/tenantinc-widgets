@@ -345,6 +345,8 @@
           </select>
         </label>
         <label class="checkbox"><input type="checkbox" id="sl-show-accordions" checked onchange="reinitSpaceList()"> Side accordions</label>
+        <!-- Unchecked by default, like the Duda toggle: off is the shipped behaviour. -->
+        <label class="checkbox"><input type="checkbox" id="sl-enable-sticky" onchange="reinitSpaceList()"> Sticky columns (desktop)</label>
         <label>
           Accordion side:
           <select id="sl-ap-location" onchange="reinitSpaceList()">
@@ -1955,6 +1957,7 @@ Special</textarea>
         categoryOrdering: document.getElementById('sl-category-ordering').value,
         apLocation:    document.getElementById('sl-ap-location').value,
         showSideAccordions: document.getElementById('sl-show-accordions').checked,
+        enableSticky: document.getElementById('sl-enable-sticky').checked,
         isReviews:   document.getElementById('sl-is-reviews').checked,
         isFeatures:  document.getElementById('sl-is-features').checked,
         isNearby:    document.getElementById('sl-is-nearby').checked,

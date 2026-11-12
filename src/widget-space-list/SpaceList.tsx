@@ -5,6 +5,7 @@ import type { SpaceListProps, WidgetConfig, Unit } from './types';
 import { configureApi } from './apiCreds';
 import cfg from './config.json';
 import { fetchSpaceGroups, fetchWebsiteSpaceGroupId, mapApiToUnits } from './api';
+import { DEMO_UNITS } from './data';
 import { boundText, resolvePropertyId, resolveRequireId } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { PropertyIdProvider, PropertyExtrasProvider, ReviewsProxyProvider } from './propertyContext';
@@ -95,6 +96,7 @@ export function SpaceList({
   featureCollection = FEATURE_PAGE_COLLECTION,
   stickyFilterBar = true,
   stickyOffsetTop = 0,
+  enableSticky = false,
   inEditor    = false,
   elementId,
   siteId,
@@ -184,6 +186,63 @@ export function SpaceList({
     // once it's portaled out of the widget's tree.
     className: 'sl-wrapper sl-top-bar-pinned',
   });
+
+  /* The desktop sticky columns are opt-in per instance. A Duda toggle arrives
+     as the string 'true'/'false', so coerce rather than trusting truthiness —
+     'false' is truthy. Same treatment as enablePromoLogic below.
+     Off, the two effects below return immediately and `sl-sticky-cols` is
+     absent from the wrapper, so none of the sticky CSS can match: the widget
+     behaves exactly as it did before this was added. */
+  const stickyColumns = enableSticky === true || enableSticky === 'true';
+
+  /* Desktop: the left column's sticky filter bar and section headers are
+     transparent until they are actually PINNED, then take the colour of the
+     Duda section behind the widget (see "Sticky headers" in SpaceList.css).
+     CSS cannot ask "am I stuck?" in every browser, so this marks them
+     .sl-is-stuck on scroll. The section colour is the nearest ancestor with an
+     opaque background — the widget itself paints none. */
+  useEffect(() => {
+    if (!stickyColumns) return undefined;
+    const wrapper = wrapperRef.current;
+    if (!wrapper || typeof window.matchMedia !== 'function') return undefined;
+    const desktop = window.matchMedia('(min-width: 769px)');
+
+    for (let el = wrapper.parentElement; el; el = el.parentElement) {
+      const bg = getComputedStyle(el).backgroundColor;
+      if (bg && bg !== 'transparent' && !/^rgba\(.*,\s*0\)$/.test(bg)) {
+        wrapper.style.setProperty('--sl-sticky-bg', bg);
+        break;
+      }
+    }
+
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      // Section headers pin below the bar, so publish its height for the CSS
+      // and use it as their line. The slot has no box on a feature page.
+      const bar = wrapper.querySelector<HTMLElement>('.sl-top-bar-slot');
+      const barH = bar ? bar.offsetHeight : 0;
+      wrapper.style.setProperty('--sl-bar-h', `${barH}px`);
+      wrapper.querySelectorAll<HTMLElement>('.sl-top-bar-slot, .sl-accordion-header').forEach((el) => {
+        const section = el.parentElement;
+        const line = stickyOffsetTop + (el === bar ? 0 : barH);
+        // Pinned = sitting on its line while its section has scrolled above it.
+        const stuck = desktop.matches && !!section
+          && Math.abs(el.getBoundingClientRect().top - line) < 1
+          && section.getBoundingClientRect().top < line - 1;
+        el.classList.toggle('sl-is-stuck', stuck);
+      });
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    update();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+    };
+  }, [stickyColumns, stickyOffsetTop]);
 
   // Second API call: property FAQ / phone / socials for the sidebar accordion.
   // Null until loaded (or on failure) → sections fall back to their demo data.
@@ -392,7 +451,16 @@ export function SpaceList({
         // forward it — every card simply keeps its bundled render.
         if (raw && !cancelled) setLiveUnits(mapApiToUnits(raw, { siteId, baseUrl: spaceImageBaseUrl }));
       })
-      .catch((err) => console.error('[SpaceList] fetchSpaceGroups error:', err))
+      .catch((err) => {
+        console.error('[SpaceList] fetchSpaceGroups error:', err);
+        // TEMPORARY, dev harness only: while the Hummingbird key is down the
+        // harness gets the sample spaces in data.ts instead of an empty list.
+        // The hostname test keeps them off every Duda page, editor included.
+        if (!cancelled && /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(window.location.hostname)) {
+          console.info('[SpaceList] harness: showing DEMO_UNITS sample spaces');
+          setLiveUnits(DEMO_UNITS);
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [effectivePropertyId, effectiveCompanyId, spaceGroupId, isDynamicTarget]);
@@ -884,7 +952,15 @@ export function SpaceList({
     <ReviewsProxyProvider siteId={siteId ?? ''} base={login_api_base ?? ''}>
     <PropertyExtrasProvider extras={propertyExtras}>
      <CompanyIdProvider companyId={effectiveCompanyId ?? ''}>
-    <div className={`sl-wrapper filter-top ap-${apLocation}`} ref={wrapperRef}>
+    <div
+      className={`sl-wrapper filter-top ap-${apLocation}${stickyColumns ? ' sl-sticky-cols' : ''}`}
+      ref={wrapperRef}
+      // Only the sticky rules read --sl-sticky-offset, so off it is not set at
+      // all rather than set to a value nothing consumes.
+      style={stickyColumns
+        ? ({ '--sl-sticky-offset': `${stickyOffsetTop}px` } as React.CSSProperties)
+        : undefined}
+    >
       {/* Off when #18 draws the heading instead — see showHeading. */}
       {showHeading && (
       <div className="sl-heading">

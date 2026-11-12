@@ -2830,6 +2830,44 @@
   max-width: 100%;
 }
 
+/* Stays in view while the listing scrolls past (.sl-row is align-items:
+   flex-start, so the panel is only as tall as its content and has room to
+   travel). --sl-sticky-offset is the stickyOffsetTop prop (a theme's fixed
+   header). Inert once the panel has wrapped below the listing: the row ends
+   with it, so there is nothing left to stick through. A Duda ancestor with
+   overflow:hidden would also switch it off.
+
+   It always pins by its TOP, and once open sections make it taller than the
+   window it scrolls ITSELF. The earlier approach pinned a too-tall panel by
+   its bottom instead, which reached the lower sections only by pushing the
+   first ones off the top of the screen — with two or three sections open you
+   could never see them all. Scrolling in place keeps the whole panel reachable
+   without moving it.
+
+   Opt-in: .sl-sticky-cols is on the wrapper only while the enableSticky toggle
+   is on (see SpaceList.tsx), so this is a separate rule from the panel's layout
+   above rather than a scoped copy of it.
+   :not(--mobile) excludes the below-the-listing copy, which must stay static —
+   stated here so the display:none rule for it further down has nothing to
+   out-specify. */
+.sl-wrapper.sl-sticky-cols .sl-sa-panel:not(.sl-sa-panel--mobile) {
+  position: sticky;
+  top: calc(var(--sl-sticky-offset, 0px) + 24px);
+  /* 24px of breathing room at the top (the `top` above) and the same at the
+     bottom, so the panel never runs flush into either edge of the window. */
+  max-height: calc(100vh - var(--sl-sticky-offset, 0px) - 48px);
+  overflow-y: auto;
+}
+
+/* The panel is a flex column, so its sections are flex items and shrink to fit
+   by default. Capped above, that compressed them instead of overflowing — an
+   open section went from 841px to 502px, its content clipped by its own
+   overflow:hidden, and the panel had nothing to scroll. They keep their
+   height; the panel scrolls. */
+.sl-wrapper.sl-sticky-cols .sl-sa-panel:not(.sl-sa-panel--mobile) > * {
+  flex-shrink: 0;
+}
+
 /* Figma 9403-48439. Three states: flat by default, grey outline on hover,
    outline + shadow when open. The shadow used to be permanent, which left
    nothing to distinguish the open section from the closed ones.
@@ -4696,6 +4734,43 @@
      becomes the container itself — otherwise none of them would apply and the
      search field would reappear mid-pin. */
   container-type: inline-size;
+}
+
+/* ── Sticky headers (desktop) ────────────────────────────────────────────────
+   The left column keeps the filter bar pinned at the top for the whole
+   listing, and the current section's header (Small, Medium, Large, Parking…)
+   pinned directly BELOW it. Each header is sticky within its own .sl-accordion,
+   so it lets go when its section ends and the next one takes its place.
+   --sl-bar-h is the bar slot's height, measured in SpaceList.tsx, so a bar
+   that wraps to two rows still leaves the header clear of it.
+   Transparent at rest, like the rest of the widget. Only while one is actually
+   PINNED (.sl-is-stuck, set in SpaceList.tsx) does it take a ground, or the
+   cards would show through as they scroll beneath. That ground is
+   --sl-sticky-bg: the colour of the Duda section behind the widget, read off
+   the page, so it matches whatever the editor set; white if none is found.
+   Mobile has its own pinned bar (@shared/stickyStack), so this is desktop
+   only, at the same 768px line.
+   Opt-in: every rule here needs .sl-sticky-cols on the wrapper, which the
+   enableSticky toggle adds (see SpaceList.tsx). Off, none of them match. */
+@media (min-width: 769px) {
+  .sl-wrapper.sl-sticky-cols .sl-top-bar-slot {
+    position: sticky;
+    top: var(--sl-sticky-offset, 0px);
+    z-index: 4;
+    /* Room above and below the bar for its pinned ground, cancelled by the
+       margins so the layout at rest is unchanged. */
+    padding-block: 12px;
+    margin-block: -12px;
+  }
+  .sl-wrapper.sl-sticky-cols .sl-accordion-header {
+    position: sticky;
+    top: calc(var(--sl-sticky-offset, 0px) + var(--sl-bar-h, 0px));
+    z-index: 3;
+  }
+  .sl-wrapper.sl-sticky-cols .sl-top-bar-slot.sl-is-stuck,
+  .sl-wrapper.sl-sticky-cols .sl-accordion-header.sl-is-stuck {
+    background: var(--sl-sticky-bg, #fff);
+  }
 }
 
 /* Out of flow: as a plain flex child of .sl-listing-area (gap: 20px) a
