@@ -644,7 +644,7 @@ export interface Contact {
 
 function Step1Form({
   eyebrow, heading, termsHref, brandName, transactionState, onRetry, changeSpaceUrl,
-  onRent, onReserve, reserveError, initial, reservationMode = false, onDraft,
+  onRent, onReserve, reserveError, initial, reservationMode = false, onDraft, onEdited,
 }: {
   eyebrow: string;
   heading: string;
@@ -668,14 +668,27 @@ function Step1Form({
    * Rent is pressed; see `draftContact` there.
    */
   onDraft?: (c: Contact | undefined) => void;
+  /** Fires on the first change to any field (and every one after) — the
+   *  signed-in fast-path stands down once the shopper has started typing. */
+  onEdited?: () => void;
 }) {
-  const [business, setBusiness] = useState(initial?.business ?? false);
-  const [email, setEmail] = useState(initial?.email ?? '');
-  const [phone, setPhone] = useState(initial?.phone ?? '');
-  const [first, setFirst] = useState(initial?.first ?? '');
-  const [last, setLast] = useState(initial?.last ?? '');
+  const [business, setBusinessRaw] = useState(initial?.business ?? false);
+  const [email, setEmailRaw] = useState(initial?.email ?? '');
+  const [phone, setPhoneRaw] = useState(initial?.phone ?? '');
+  const [first, setFirstRaw] = useState(initial?.first ?? '');
+  const [last, setLastRaw] = useState(initial?.last ?? '');
   // Renting as a business replaces First + Last with a single trading name.
-  const [bizName, setBizName] = useState('');
+  const [bizName, setBizNameRaw] = useState('');
+  /* Every field setter reports the edit first: the signed-in fast-path must
+     never remount this form (or auto-open the date modal) over values the
+     shopper has started typing — see `onEdited` at the call site. */
+  const touch = <T,>(set: (v: T) => void) => (v: T) => { onEdited?.(); set(v); };
+  const setBusiness = touch(setBusinessRaw);
+  const setEmail = touch(setEmailRaw);
+  const setPhone = touch(setPhoneRaw);
+  const setFirst = touch(setFirstRaw);
+  const setLast = touch(setLastRaw);
+  const setBizName = touch(setBizNameRaw);
   const [attempted, setAttempted] = useState(false);
   const transactionReady = transactionState === 'ready';
 
@@ -2458,7 +2471,11 @@ export function RentalFlow2Step({
    * the key does not change at the click and nothing is fetched again.
    */
   const [draftContact, setDraftContact] = useState<Contact | undefined>(undefined);
-  const previewContact = contact ?? draftContact;
+  /* While step 1 is still editable the shopper's DRAFT outranks any stored
+     contact (a signed-in prefill, a restored reservation): edits must reach
+     the preview without waiting for Rent to re-submit them. From step 2 the
+     submitted contact is the document's party and the draft is history. */
+  const previewContact = step === 1 ? (draftContact ?? contact) : (contact ?? draftContact);
   const contactKey = previewContact
     ? [previewContact.first, previewContact.last, previewContact.email, previewContact.phone, previewContact.businessName].map((v) => v ?? '').join('|')
     : '';
@@ -3031,19 +3048,26 @@ export function RentalFlow2Step({
     return () => { cancelled = true; };
   }, [inEditor, login_api_base, siteId, contact, reservationIdProp, confirmation]);
 
+  /* The shopper has typed into step 1. From that moment the fast-path stands
+     down for good: remounting the form would destroy their entries, and the
+     date modal must not open over someone mid-sentence. A ref, read when the
+     effect runs — the record can land at any point during their typing. */
+  const step1EditedRef = useRef(false);
   const accountAdvancedRef = useRef(false);
   useEffect(() => {
     if (accountAdvancedRef.current || !accountContact || step !== 1) return;
     if (contact || confirmation || reservationIdProp) return;
+    if (step1EditedRef.current) { accountAdvancedRef.current = true; return; }
     const complete = skipValidation() || (
       isValidEmail(accountContact.email) && isPossiblePhone(accountContact.phone, 'US')
       && isValidName(accountContact.first) && isValidName(accountContact.last)
     );
     if (!complete) {
-      // Prefill only: the form opens with what the account knows and asks for
-      // the rest. Once, so the shopper's own edits are never overwritten.
+      /* Prefill only: the form remounts holding what the account knows (via
+         `initial`) and asks for the rest. NOT written to `contact` — a
+         submitted contact outranks the shopper's draft in the agreement
+         preview, and this one is known-incomplete. */
       accountAdvancedRef.current = true;
-      setContact(accountContact);
       setAccountPrefillNonce(1);
       return;
     }
@@ -3052,6 +3076,10 @@ export function RentalFlow2Step({
       && quote?.unitId
       && selection.unitId === quote.unitId
       && (!unitIdProp || quote.unitId === unitIdProp || quote.unitId === hold?.unitId)
+      /* transactionReady requires the group too — without it the form's own
+         Rent button is disabled, so the fast-path must not outrun it. The
+         reservation path above may skip this; a reservation IS its unit. */
+      && unitGroupIdProp
       && propertyInfo
       && effectiveCompanyId
       && effectivePropertyId
@@ -3066,7 +3094,8 @@ export function RentalFlow2Step({
     setIntent('rent');
     setDateModalOpen(true);
   }, [accountContact, step, contact, confirmation, reservationIdProp, selection, quote, unitIdProp,
-    hold, propertyInfo, effectiveCompanyId, effectivePropertyId, quoteFailed, holdFailed, holdExpired]);
+    hold, propertyInfo, effectiveCompanyId, effectivePropertyId, unitGroupIdProp,
+    quoteFailed, holdFailed, holdExpired]);
 
   // Fill missing office/gate hours on the confirmation page (snapshot may predate
   // the property load). Read-only, fail-soft; runs only when hours are absent.
@@ -3794,9 +3823,12 @@ export function RentalFlow2Step({
         {step === 1 ? (
           <Step1Form
             key={accountPrefillNonce}
-            initial={contact}
+            /* The account record prefills an untouched form even when it was
+               too incomplete to submit as `contact` — see the fast-path. */
+            initial={contact ?? accountContact}
             reservationMode={!!reservationIdProp}
             onDraft={setDraftContact}
+            onEdited={() => { step1EditedRef.current = true; }}
             eyebrow={eyebrow}
             heading={heading}
             termsHref={termsHref}
