@@ -42,7 +42,18 @@ function phoneEntries(row: CollectionRow): Record<string, unknown>[] {
   return Array.isArray(list) ? (list.filter((e) => e && typeof e === 'object') as Record<string, unknown>[]) : [];
 }
 
-/** Main + active → any active → any; empty numbers never count. */
+/*
+ * A seeded stand-in, not a phone number: every digit the same once an optional
+ * country "1" is gone. Four of the seven live PropertiesInternal rows carry
+ * exactly `18888888888` as their active Main entry (verified on the published
+ * site 2026-11-13), and printing (888) 888-8888 on the nav is strictly worse
+ * than the business number the nav already holds. A real all-one-digit vanity
+ * line loses to this rule, knowingly — this data is seeded, not vain.
+ */
+const isPlaceholder = (digits: string): boolean =>
+  /^(\d)\1*$/.test(digits.replace(/^1(?=\d{10}$)/, ''));
+
+/** Main + active → any active → any; empty or seeded numbers never count. */
 export function pickPropertyPhone(row: CollectionRow): PagePhone | null {
   const usable = phoneEntries(row)
     .map((e) => ({
@@ -50,7 +61,7 @@ export function pickPropertyPhone(row: CollectionRow): PagePhone | null {
       active: Number(e.status) !== 0,
       main: str(e.type).trim().toLowerCase() === 'main',
     }))
-    .filter((e) => e.digits.length > 0);
+    .filter((e) => e.digits.length > 0 && !isPlaceholder(e.digits));
   const best = usable.find((e) => e.main && e.active) ?? usable.find((e) => e.active) ?? usable[0];
   return best ? { phone: formatPhone(best.digits), digits: best.digits } : null;
 }
