@@ -2401,6 +2401,20 @@ export function RentalFlow2Step({
 
   const choiceKey = `${insuranceId ?? ''}|${ymd(moveIn)}|${paymentCycle}|${nokeTier ?? ''}`;
   const quotedChoice = useRef<string | undefined>(undefined);
+  /*
+   * The choice the shown quote does NOT yet price — set the moment a change
+   * triggers a re-quote, cleared when its quote lands. While set, the rail may
+   * keep showing the last good figure (deliberate; blanking it on a transient
+   * failure helped nobody), but PAYING is blocked: the lease would be sent the
+   * previous total beside the NEW choices, and the engine refuses that by
+   * naming the real amount ("Please provide payment for the amount of $…").
+   * A failed re-quote retries once by itself (the nonce below); after that the
+   * shopper's next change tries again. Undefined whenever every choice shown
+   * is the one that was priced.
+   */
+  const [unpricedChoice, setUnpricedChoice] = useState<string | undefined>(undefined);
+  const [requoteNonce, setRequoteNonce] = useState(0);
+  const requoteRetriedFor = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!quoteAnchor || step !== 2 || !ctx.companyId) return undefined;
     if (quotedChoice.current === undefined || quotedChoice.current === choiceKey) {
@@ -2408,7 +2422,19 @@ export function RentalFlow2Step({
       return undefined;
     }
     quotedChoice.current = choiceKey;
+    const keyForThis = choiceKey;
+    setUnpricedChoice(keyForThis);
     let cancelled = false;
+    const failed = () => {
+      if (cancelled) return; // superseded by a newer choice, which owns the flag now
+      if (requoteRetriedFor.current !== keyForThis) {
+        // One automatic retry: a sentinel that matches no real key makes the
+        // re-run below fetch again instead of treating the key as quoted.
+        requoteRetriedFor.current = keyForThis;
+        quotedChoice.current = 'retrying';
+        setRequoteNonce((n) => n + 1);
+      }
+    };
     fetchMoveInQuote(ctx, { id: quoteAnchor.unitId, number: quoteAnchor.unitNumber }, {
       ...quoteAnchor.idOpts,
       insuranceId,
@@ -2419,16 +2445,23 @@ export function RentalFlow2Step({
       paymentCycle,
     })
       .then((q) => {
-        if (cancelled || !q) return;
+        if (cancelled) return;
+        if (!q) { failed(); return; }
         setQuote(q);
+        requoteRetriedFor.current = undefined;
+        setUnpricedChoice((k) => (k === keyForThis ? undefined : k));
         if (q.pricedWithoutPromotions) setPromosRefused(true);
       })
       // Keep the previous quote on failure rather than blanking the rail: the
       // shopper changed a plan, not the unit, and the old total is still the
-      // last figure the API actually stood behind.
-      .catch((err) => console.warn(`${logTag} re-quote after a choice change failed — keeping the previous total:`, err));
+      // last figure the API actually stood behind. `unpricedChoice` stays set,
+      // so that figure can be LOOKED at but not PAID.
+      .catch((err) => {
+        console.warn(`${logTag} re-quote after a choice change failed — keeping the previous total (payment blocked until it reprices):`, err);
+        failed();
+      });
     return () => { cancelled = true; };
-  }, [quoteAnchor, step, choiceKey, insuranceId, nokeTier, moveIn, paymentCycle, selection, ctx, logTag]);
+  }, [quoteAnchor, step, choiceKey, insuranceId, nokeTier, moveIn, paymentCycle, selection, ctx, logTag, requoteNonce]);
 
   /*
    * Fetch the lease preview as soon as the NUMBERS exist — a hold and a quote,
@@ -3878,7 +3911,12 @@ export function RentalFlow2Step({
             cardUnavailable={stripeMisconfigured}
               onCycleChange={setPaymentCycle}
             onEditDate={() => setDateModalOpen(true)}
-            payNowTotal={railQuote?.totalDue}
+            /* While a choice change is still being re-priced, the total is
+               withheld: the wallets refuse to open ("still being calculated"),
+               the Agree & Pay label drops the stale figure, and the handler
+               above refuses outright. Step2 is built for a transient missing
+               total (see its canOpenWallet), so nothing unmounts. */
+            payNowTotal={unpricedChoice ? undefined : railQuote?.totalDue}
             paying={paying}
             payError={payError}
             gpPublicKey={gpKey}
@@ -3908,6 +3946,17 @@ export function RentalFlow2Step({
                */
               if ((info.card || info.bank || info.wallet) && (hold || reservationIdProp) && quote) {
                 if (paying) return Promise.resolve(false); // in flight — never double-charge
+                /*
+                 * The shown quote was priced for DIFFERENT choices (a cycle,
+                 * date or plan change whose re-quote is in flight or failed).
+                 * Paying now would send that stale total beside the new
+                 * choices — the engine refuses it by naming the real amount.
+                 * Refuse here instead, with a message, and charge nothing.
+                 */
+                if (unpricedChoice) {
+                  setPayError('Your total is being updated for your latest selections. One moment, then press Pay again.');
+                  return Promise.resolve(false);
+                }
                 /*
                  * The lightbox opens on the CLICK, not on the response.
                  *
