@@ -44,8 +44,12 @@ export function MoneyBreakdown({
           <span className="hb-money-strong">#{unitNumber}</span>
         </div>
       )}
-      {lines.map((l) => (
-        <div className="hb-money-row" key={`${l.name}-${l.cost}`}>
+      {/* The index is part of the key: a prepay-cycle quote repeats the Rent
+          and coverage lines per month at the same price, so name+cost alone
+          collides. The list is replaced wholesale on every re-quote, never
+          reordered in place, so the index is a stable identity here. */}
+      {lines.map((l, i) => (
+        <div className="hb-money-row" key={`${i}-${l.name}-${l.cost}-${l.startDate ?? ''}`}>
           {l.name === 'Rent' && l.startDate ? (
             <span className="hb-money-label">
               Rent (Prorated)

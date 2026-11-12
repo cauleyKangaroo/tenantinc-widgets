@@ -1275,16 +1275,24 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
    * amount of $111.48", which is 60.94 + 25.27 + 25.27 to the cent (live,
    * 2026-11-13).
    */
-  const invoices = (details?.Invoices ?? []).filter((i) => typeof i?.total_due === 'number');
-  if (!invoices.length) return undefined;
   // `balance` is the NET payable; `total_due` is the gross before discounts.
   // Verified on a held unit 2026-08-20: with a 50%-off promotion the same quote
   // returned total_due 75.52 against balance 71.02, and the per-line total_cost
   // values summed to the balance — so reading total_due showed a total $4.50
   // higher than both the lines above it and the amount actually charged.
-  const payable = invoices.reduce(
-    (sum, i) => sum + (typeof i.balance === 'number' ? i.balance : i.total_due as number), 0,
-  );
+  const amountOf = (i: ApiQuoteInvoice | undefined): number | undefined => {
+    const a = typeof i?.balance === 'number' ? i.balance : i?.total_due;
+    return typeof a === 'number' && Number.isFinite(a) ? a : undefined;
+  };
+  /*
+   * ALL priceable or NO quote. Filtering out an unpriceable invoice would
+   * return a partial sum that the rail shows and the lease then refuses —
+   * the very bug this aggregation fixes, reintroduced quietly. No figure at
+   * all beats a wrong one: the caller fails closed or keeps its last quote.
+   */
+  const invoices = details?.Invoices ?? [];
+  if (!invoices.length || invoices.some((i) => amountOf(i) === undefined)) return undefined;
+  const payable = invoices.reduce((sum, i) => sum + (amountOf(i) as number), 0);
   return {
     unitId: unit.id,
     unitNumber: unit.number,
