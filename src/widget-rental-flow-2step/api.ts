@@ -1264,23 +1264,40 @@ export async function fetchMoveInQuote(ctx: RentalCtx, unit: { id: string; numbe
     data = unwrap(await getJsonV1(path + cycleQuery(opts)));
   }
   const details = data?.details as { Invoices?: ApiQuoteInvoice[]; bill_day?: number; rent?: number } | undefined;
-  const inv = (details?.Invoices ?? [])[0];
-  if (!inv || typeof inv.total_due !== 'number') return undefined;
+  /*
+   * EVERY invoice, not Invoices[0]. A monthly quote returns one invoice, but a
+   * prepay cycle returns the WHOLE period — Quarterly on Bellflower came back
+   * as three (move-in + two further months, each with the cycle-discounted
+   * rent and the recurring coverage), and the LEASE charges their sum.
+   * Reading only the first showed a quarterly "total" a few cents under the
+   * monthly one, and Pay Now then sent that first-month figure to a lease that
+   * wanted the full quarter — refused with "Please provide payment for the
+   * amount of $111.48", which is 60.94 + 25.27 + 25.27 to the cent (live,
+   * 2026-11-13).
+   */
+  const invoices = (details?.Invoices ?? []).filter((i) => typeof i?.total_due === 'number');
+  if (!invoices.length) return undefined;
   // `balance` is the NET payable; `total_due` is the gross before discounts.
   // Verified on a held unit 2026-08-20: with a 50%-off promotion the same quote
   // returned total_due 75.52 against balance 71.02, and the per-line total_cost
   // values summed to the balance — so reading total_due showed a total $4.50
   // higher than both the lines above it and the amount actually charged.
-  const payable = typeof inv.balance === 'number' ? inv.balance : inv.total_due;
+  const payable = invoices.reduce(
+    (sum, i) => sum + (typeof i.balance === 'number' ? i.balance : i.total_due as number), 0,
+  );
   return {
     unitId: unit.id,
     unitNumber: unit.number,
-    totalDue: payable,
-    totalTax: inv.total_tax ?? 0,
+    // Cents-exact: each invoice's figure is already rounded, so the sum only
+    // needs the float noise squeezed out, never re-rounding of a real value.
+    totalDue: Math.round(payable * 100) / 100,
+    totalTax: Math.round(invoices.reduce((sum, i) => sum + (i.total_tax ?? 0), 0) * 100) / 100,
     ...(pricedWithoutPromotions ? { pricedWithoutPromotions } : {}),
     billDay: typeof details?.bill_day === 'number' ? details.bill_day : undefined,
     rent: typeof details?.rent === 'number' ? details.rent : undefined,
-    lines: (inv.Detail ?? [])
+    // Later invoices' lines follow the first's, each carrying its own period
+    // dates, so a quarterly breakdown lists Rent (and coverage) per month.
+    lines: invoices.flatMap((i) => i.Detail ?? [])
       .filter((d) => d.name && typeof d.total_cost === 'number')
       .map((d) => ({
         name: d.name as string,
