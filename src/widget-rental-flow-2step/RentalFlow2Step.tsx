@@ -23,6 +23,8 @@ import { resolveIdvPresentation } from './idvPresentation';
 import { useIdvController } from './useIdvController';
 import { canRenderLiveIdvHarness } from './LiveIdvHarness';
 import cfg from './config.json';
+import { readSession } from '@shared/accountSession';
+import { fetchContact as fetchAccountRecord } from '@shared/accountApi';
 import { Confirmation, type EntryMode } from './Confirmation';
 import { tokenizeCard } from './gpTokenize';
 import { createStripeBankAccount } from '@shared/stripeHostedFields';
@@ -2972,6 +2974,100 @@ export function RentalFlow2Step({
   }, [reservationIdProp, step, confirmation, contact, selection, quote, unitIdProp, hold,
     propertyInfo, effectiveCompanyId, effectivePropertyId, quoteFailed, holdFailed, holdExpired, goToStep]);
 
+  /*
+   * SIGNED-IN FAST-PATH — a live My Account session already names the renter,
+   * so step 1 would only make them retype the name, email and phone their
+   * account holds. The account record fills `contact` and the flow behaves
+   * exactly as if Rent had been pressed on a completed form: the move-in date
+   * modal opens — the one question only the shopper can answer, deliberately
+   * NOT skipped — and confirming it lands on step 2.
+   *
+   * Two effects. The lookup fires on arrival (one call, usually back before
+   * the quote is), but the advance waits for the same readiness the
+   * reservation fast-path above requires — advancing before a unit is priced
+   * would put the date modal over a form that cannot transact yet. The
+   * completeness checks are the very ones Step1Form's gate applies, so this
+   * can never hand step 2 a contact the form would have refused; a record
+   * that fails them (no phone on file, say) only PREFILLS the form instead,
+   * and the shopper types the one thing missing rather than everything.
+   *
+   * Fires once. Closing the modal without confirming leaves the shopper on
+   * step 1 with the form filled in — everything after the advance is theirs.
+   * A dead token, a storage-less browser or any lookup failure means no
+   * session, which is the page exactly as it was before this path existed.
+   */
+  const [accountContact, setAccountContact] = useState<Contact | undefined>(undefined);
+  /* Step1Form reads `initial` only when it MOUNTS, and it mounted before the
+     account record landed — so applying the record remounts it (the `key`
+     below), once, and the form behind the date modal shows the details the
+     fast-path filled in rather than empty boxes if the shopper closes it. */
+  const [accountPrefillNonce, setAccountPrefillNonce] = useState(0);
+  const accountLookupRef = useRef(false);
+  useEffect(() => {
+    if (accountLookupRef.current || inEditor) return undefined;
+    if (!login_api_base?.trim() || !siteId?.trim()) return undefined;
+    // Another path already owns the contact: a reservation hand-off, a
+    // restored confirmation, or step 1 itself.
+    if (contact || reservationIdProp || confirmation) return undefined;
+    const session = readSession();
+    if (!session) return undefined;
+    accountLookupRef.current = true;
+    let cancelled = false;
+    fetchAccountRecord({ baseUrl: login_api_base.trim(), siteId: siteId.trim() }, session.token)
+      .then((res) => {
+        if (cancelled || !res.ok) return;
+        const phones = Array.isArray(res.data.phones) ? res.data.phones as Record<string, unknown>[] : [];
+        // `primary` first — the account can hold several numbers.
+        const row = phones.find((p) => p.primary) ?? phones[0];
+        const phone = [row?.phone, row?.number].find((v): v is string => typeof v === 'string' && !!v) ?? '';
+        setAccountContact({
+          first: typeof res.data.first === 'string' ? res.data.first : '',
+          last: typeof res.data.last === 'string' ? res.data.last : '',
+          email: typeof res.data.email === 'string' ? res.data.email : '',
+          phone,
+          business: false,
+        });
+      });
+    return () => { cancelled = true; };
+  }, [inEditor, login_api_base, siteId, contact, reservationIdProp, confirmation]);
+
+  const accountAdvancedRef = useRef(false);
+  useEffect(() => {
+    if (accountAdvancedRef.current || !accountContact || step !== 1) return;
+    if (contact || confirmation || reservationIdProp) return;
+    const complete = skipValidation() || (
+      isValidEmail(accountContact.email) && isPossiblePhone(accountContact.phone, 'US')
+      && isValidName(accountContact.first) && isValidName(accountContact.last)
+    );
+    if (!complete) {
+      // Prefill only: the form opens with what the account knows and asks for
+      // the rest. Once, so the shopper's own edits are never overwritten.
+      accountAdvancedRef.current = true;
+      setContact(accountContact);
+      setAccountPrefillNonce(1);
+      return;
+    }
+    const ready = !!(
+      selection?.unitId
+      && quote?.unitId
+      && selection.unitId === quote.unitId
+      && (!unitIdProp || quote.unitId === unitIdProp || quote.unitId === hold?.unitId)
+      && propertyInfo
+      && effectiveCompanyId
+      && effectivePropertyId
+      && !quoteFailed
+      && !holdFailed
+      && !holdExpired
+    );
+    if (!ready) return;
+    accountAdvancedRef.current = true;
+    setContact(accountContact);
+    setAccountPrefillNonce(1);
+    setIntent('rent');
+    setDateModalOpen(true);
+  }, [accountContact, step, contact, confirmation, reservationIdProp, selection, quote, unitIdProp,
+    hold, propertyInfo, effectiveCompanyId, effectivePropertyId, quoteFailed, holdFailed, holdExpired]);
+
   // Fill missing office/gate hours on the confirmation page (snapshot may predate
   // the property load). Read-only, fail-soft; runs only when hours are absent.
   useEffect(() => {
@@ -3697,6 +3793,7 @@ export function RentalFlow2Step({
           <div className={`rf-step rf-step--${phase}`}>
         {step === 1 ? (
           <Step1Form
+            key={accountPrefillNonce}
             initial={contact}
             reservationMode={!!reservationIdProp}
             onDraft={setDraftContact}
