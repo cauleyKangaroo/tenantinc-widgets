@@ -355,7 +355,12 @@ function OtpInput({ value, onChange, invalid, onComplete }: OtpInputProps) {
              deserves the same shortcut. The insert lands as one multi-digit
              change, which handleChange spreads from box 0. */
           autoComplete="one-time-code"
-          maxLength={2}
+          /* Room for the WHOLE code, not 2: the keyboard's suggestion honours
+             maxLength when it inserts, so 2 truncated the six digits before
+             handleChange could spread them. The box still DISPLAYS one digit
+             (its value is controlled to value[i]); the limit only has to admit
+             what a single change can carry. */
+          maxLength={OTP_LENGTH}
           value={value[i]?.trim() ?? ''}
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
@@ -655,14 +660,27 @@ export function AccountLogin({
    * Phone digits only: the field carries the display formatting the reader
    * typed, and '(555) 123-4567' is not what was registered.
    */
-  const identifierPayload = useCallback((): Identifier => (
-    kind === 'email'
+  const payloadFor = useCallback((k: IdentifierKind): Identifier => (
+    k === 'email'
       ? { email: identifier.trim() }
       // The 10-digit national number — isPhone also accepts "1" + 10, and
       // that leading country code is dropped here so "+1 (415) …" and
       // "(415) …" reach the proxy as the same identifier.
       : { phone: identifier.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '') }
-  ), [kind, identifier]);
+  ), [identifier]);
+
+  /*
+   * The channel the code was actually SENT to — captured at send time.
+   *
+   * `kind` is live state: it follows the field, and the field follows the
+   * viewport (the phone-first mobile mode). Send an email code at desktop
+   * width, rotate under 768px, and `kind` flips to 'phone' — so a verify or
+   * resend built from `kind` would submit `{ phone: '' }` against a code the
+   * server paired with the email, and the whole verify step would talk about
+   * texting. Everything after the send therefore reads THIS, which only a
+   * new send (or going back to the login) can change.
+   */
+  const [sentKind, setSentKind] = useState<IdentifierKind>('phone');
 
   /** Verified: hand over to the account page, or show the built-in card. */
   const finish = useCallback(() => {
@@ -736,6 +754,8 @@ export function AccountLogin({
     }
     setCode('');
     setCodeError('');
+    // What the verify step works against, whatever the viewport does next.
+    setSentKind(kind);
 
     if (!live) {
       // Nothing to call — harness/editor. Straight to the code step so the
@@ -753,7 +773,7 @@ export function AccountLogin({
      * only feedback would be a wrong-code error six digits later.
      */
     setSending(true);
-    void apiSendCode(api, identifierPayload())
+    void apiSendCode(api, payloadFor(kind))
       .then((r) => {
         if (!r.ok) {
           setIdentifyError(r.message);
@@ -789,7 +809,10 @@ export function AccountLogin({
         return;
       }
 
-      const r = await apiVerifyCode(api, identifierPayload(), candidate.replace(/\s/g, ''));
+      // The channel the code was SENT to, never the field's current one — the
+      // server pairs code and channel, and the field can flip with the
+      // viewport while a code is outstanding.
+      const r = await apiVerifyCode(api, payloadFor(sentKind), candidate.replace(/\s/g, ''));
       if (!r.ok) {
         setCodeError(r.message);
         if (r.detail) console.warn('[#17 login] verify failed:', r.detail);
@@ -839,7 +862,7 @@ export function AccountLogin({
     } finally {
       setChecking(false);
     }
-  }, [checking, bypassCode, successUrl, live, api, identifier, identifierPayload, finish, demoAccountCount, keepLoggedIn]);
+  }, [checking, bypassCode, successUrl, live, api, identifier, payloadFor, sentKind, finish, demoAccountCount, keepLoggedIn]);
 
   /*
    * WebOTP — the texted code offered by the PHONE ITSELF (client request
@@ -866,7 +889,7 @@ export function AccountLogin({
   const submitCodeRef = useRef(submitCode);
   useEffect(() => { submitCodeRef.current = submitCode; }, [submitCode]);
   useEffect(() => {
-    if (step !== 'verify' || kind !== 'phone' || !('OTPCredential' in window)) return undefined;
+    if (step !== 'verify' || sentKind !== 'phone' || !('OTPCredential' in window)) return undefined;
     interface OtpCredentials {
       get(options: { otp: { transport: string[] }; signal: AbortSignal }): Promise<{ code?: string } | null>;
     }
@@ -885,7 +908,7 @@ export function AccountLogin({
       })
       .catch(() => { /* dismissed, aborted, or no readable SMS — manual entry continues */ });
     return () => ac.abort();
-  }, [step, kind]);
+  }, [step, sentKind]);
 
   /*
    * A row of the picker was chosen (step 1c).
@@ -974,7 +997,7 @@ export function AccountLogin({
      * the reader waiting for a code nobody sent.
      */
     setSending(true);
-    void apiSendCode(api, identifierPayload())
+    void apiSendCode(api, payloadFor(sentKind))
       .then((r) => {
         if (!r.ok) {
           setCodeError(r.message);
@@ -1003,7 +1026,7 @@ export function AccountLogin({
   }
 
   if (step === 'choose') {
-    const email = kind === 'email' ? identifier.trim() : '';
+    const email = sentKind === 'email' ? identifier.trim() : '';
     const accounts: PickerAccount[] = live
       ? contactsToAccounts(pendingContacts, email)
       : DEMO_ACCOUNTS.slice(0, Math.max(2, demoAccountCount)).map((a) => ({
@@ -1077,7 +1100,7 @@ export function AccountLogin({
   }
 
   if (step === 'verify') {
-    const destination = formatDestination(identifier, kind);
+    const destination = formatDestination(identifier, sentKind);
     const complete = code.replace(/\s/g, '').length === OTP_LENGTH;
 
     return (
@@ -1085,10 +1108,10 @@ export function AccountLogin({
         <div className="al-card">
           <div className="al-head">
             <h1 className="al-title" tabIndex={-1} ref={otpHeadingRef}>
-              {kind === 'email' ? 'Check your email' : 'Check your texts'}
+              {sentKind === 'email' ? 'Check your email' : 'Check your texts'}
             </h1>
             <p className="al-sub">
-              {kind === 'email' ? 'We emailed' : 'We texted'} a 6-digit code to {destination}.
+              {sentKind === 'email' ? 'We emailed' : 'We texted'} a 6-digit code to {destination}.
               <br />
               It expires in 10 minutes.
             </p>
@@ -1149,9 +1172,9 @@ export function AccountLogin({
                   type="button"
                   className="al-verify-link"
                   disabled={checking || sending}
-                  onClick={() => backToLogin(kind === 'email' ? 'phone' : 'email')}
+                  onClick={() => backToLogin(sentKind === 'email' ? 'phone' : 'email')}
                 >
-                  {kind === 'email' ? 'Text me the code instead' : 'Email me the code instead'}
+                  {sentKind === 'email' ? 'Text me the code instead' : 'Email me the code instead'}
                 </button>
                 <span className="al-verify-sep" aria-hidden="true" />
               </>
@@ -1162,9 +1185,9 @@ export function AccountLogin({
               type="button"
               className="al-verify-link"
               disabled={checking || sending}
-              onClick={() => backToLogin(kind)}
+              onClick={() => backToLogin(sentKind)}
             >
-              {kind === 'email' ? 'Send it to a different email' : 'Send it to a different number'}
+              {sentKind === 'email' ? 'Send it to a different email' : 'Send it to a different number'}
             </button>
           </div>
         </div>

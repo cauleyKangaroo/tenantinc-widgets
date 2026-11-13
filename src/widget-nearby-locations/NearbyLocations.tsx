@@ -1223,8 +1223,18 @@ export function NearbyLocations({
 
     fetchSpacesForProperties(missing, (id, data) => {
       if (spacesCompany.current !== forCompany) return;
-      spacesCache.current.set(id, data);
       spacesInFlight.current.delete(id);
+      /* The batch reports its WHOLE portfolio on every call — that is what
+         seeds later pages — so a page turn that falls through to the
+         per-property chain (an uncurated property, a group the batch did not
+         answer) REPLAYS batch results over cards whose details already
+         resolved, wiping the banner and subtitles that `subtypesAsked` will
+         never fetch a second time. A pending result never overwrites a
+         resolved one; a first result, and the detail results themselves,
+         land exactly as before. */
+      const prior = spacesCache.current.get(id);
+      if (data.promoPending && prior && !prior.promoPending) return;
+      spacesCache.current.set(id, data);
       setApiProperties((prev) =>
         prev
           ? prev.map((p) =>
