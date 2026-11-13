@@ -52,6 +52,19 @@ export interface ApiFailure {
 
 export type SendCodeResult = SendCodeOk | ApiFailure;
 
+/** One rented (or reserved) unit on a picker contact's rentals list. */
+export interface ContactRentalUnit {
+  number?: string;
+  /** A held reservation counts as a rental, same as a signed lease. */
+  rentalType?: 'lease' | 'reservation';
+}
+
+/** One property a picker contact rents at, with its units. */
+export interface ContactRentalProperty {
+  name?: string;
+  units: ContactRentalUnit[];
+}
+
 export interface AccountContact {
   id: string;
   /** Present on the single-contact (authenticated) shape. */
@@ -59,6 +72,20 @@ export interface AccountContact {
   /** Present on the multi-contact (select_contact) shape. */
   first?: string;
   last?: string;
+  /*
+   * The picker details, added by the proxy under MRECOM-223 (2026-11-13):
+   * each contact's own email and UNMASKED phone, its space count, and its
+   * live rentals grouped by property — the data that tells two same-named
+   * contacts apart. An older proxy sends none of these (it sent `maskedPhone`
+   * instead, kept below as the legacy fallback), so every field is optional
+   * and the picker degrades to the name-only row it used to show.
+   */
+  email?: string;
+  phone?: string;
+  /** Spaces across every property — the "(9 Spaces)" beside the name. */
+  unitCount?: number;
+  properties?: ContactRentalProperty[];
+  /** LEGACY (pre-MRECOM-223 proxies only); the current shape sends `phone`. */
   maskedPhone?: string;
 }
 
@@ -178,6 +205,30 @@ export async function sendCode(
   };
 }
 
+/**
+ * A picker contact's rentals, read defensively: the proxy allow-lists the
+ * shape, but an older deployment sends nothing and nothing here may throw a
+ * sign-in away over a malformed list. A unit with no number is kept — the
+ * property row still proves WHERE the contact rents.
+ */
+function readRentalProperties(raw: unknown): ContactRentalProperty[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.flatMap((p): ContactRentalProperty[] => {
+    if (!p || typeof p !== 'object') return [];
+    const prop = p as Record<string, unknown>;
+    const units = (Array.isArray(prop.units) ? prop.units : []).flatMap((u): ContactRentalUnit[] => {
+      if (!u || typeof u !== 'object') return [];
+      const unit = u as Record<string, unknown>;
+      return [{
+        number: typeof unit.number === 'string' ? unit.number : undefined,
+        rentalType: unit.rentalType === 'reservation' ? 'reservation'
+          : unit.rentalType === 'lease' ? 'lease' : undefined,
+      }];
+    });
+    return [{ name: typeof prop.name === 'string' ? prop.name : undefined, units }];
+  });
+}
+
 /*
  * The authenticated / select_contact pair, shared by `verifyCode` and
  * `selectContact` — step 1c returns the SAME shape as 1b, so parsing it twice
@@ -210,6 +261,10 @@ function readAuthenticated(json: unknown): VerifyResult {
         id: String(c.id ?? ''),
         first: typeof c.first === 'string' ? c.first : undefined,
         last: typeof c.last === 'string' ? c.last : undefined,
+        email: typeof c.email === 'string' ? c.email : undefined,
+        phone: typeof c.phone === 'string' ? c.phone : undefined,
+        unitCount: typeof c.unitCount === 'number' ? c.unitCount : undefined,
+        properties: readRentalProperties(c.properties),
         maskedPhone: typeof c.maskedPhone === 'string' ? c.maskedPhone : undefined,
       })),
     };

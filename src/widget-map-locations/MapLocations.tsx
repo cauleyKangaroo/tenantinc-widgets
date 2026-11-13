@@ -95,7 +95,7 @@ function Stars({ rating }: { rating: number }) {
 // ── Unit row ────────────────────────────────────────────────────────────────
 
 function UnitRow({
-  unit, facility, rentalPageUrl, companyId,
+  unit, facility, rentalPageUrl, companyId, propertyHref,
 }: {
   unit: CityUnit;
   /** The facility this unit belongs to — its id is what makes the handoff
@@ -103,6 +103,9 @@ function UnitRow({
   facility: CityFacility;
   rentalPageUrl?: string;
   companyId?: string;
+  /** The facility's own page. Select goes there, not to the rental page;
+   *  the rental page is kept only for a row with no slug. */
+  propertyHref?: string;
 }) {
   return (
     <div className="ml-unit">
@@ -133,7 +136,7 @@ function UnitRow({
             handles it in preview and published, and middle-click still works. */}
         <a
           className="ml-select"
-          href={rentalHref(rentalPageUrl)}
+          href={propertyHref ?? rentalHref(rentalPageUrl)}
           aria-label={`Select ${unit.dimensions} at ${facility.name}`}
           onClick={() => saveUnitSelection({
             tierId: unit.id,
@@ -346,6 +349,7 @@ function PropertyCard({
                   facility={facility}
                   rentalPageUrl={rentalPageUrl}
                   companyId={companyId}
+                  propertyHref={propertyHref}
                 />
               ))}
             </div>

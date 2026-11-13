@@ -559,6 +559,25 @@
 /* A phone number never breaks mid-number; the email may. */
 .al-account-phone { white-space: nowrap; }
 
+/* Where the contact rents (MRECOM-223): ruled off from the identity lines,
+   one row per property — "Storage Outlet Fullerton | Space #23, #5674". The
+   rule sits on the block, not a border on the last detail line, so a contact
+   with no rentals keeps the old compact row. */
+.al-account-rentals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #e3e8ee;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.al-account-rental { overflow-wrap: anywhere; }
+.al-account-rental-prop { font-weight: 600; }
+.al-account-rental-sep { margin: 0 6px; color: #637381; }
+
 .al-pick-error { margin-top: 16px; }
 
 .al-merge {

@@ -212,32 +212,80 @@ async function verifyCodeOffline(code: string, bypassCode: string): Promise<bool
 // Account picker (Figma 12667:34621)
 // ---------------------------------------------------------------------------
 
+/** One property line on a picker row: "Storage Outlet Fullerton | Space #23, #5674". */
+interface PickerRental {
+  property: string;
+  /** Unit numbers, already #-prefixed where known; "(Reservation)" is not marked — the mock lists all rentals alike. */
+  spaces: string[];
+}
+
 /** One row of the picker, from either source below. */
 interface PickerAccount {
   id: string;
   name: string;
-  /** Rented spaces — "(1 Space)". The API's contact rows do not carry it yet. */
+  /** Rented spaces across every property — "(2 Spaces)". */
   spaces?: number;
   /** The line under the name: "email, (949) 748-9365" — either part may be absent. */
   email?: string;
   phone?: string;
+  /** Where it rents, one line per property (MRECOM-223). Empty on old proxies. */
+  rentals: PickerRental[];
 }
 
 /**
- * HARNESS/EDITOR ONLY — the picker frame's own sample rows, shown after the
- * offline bypass when `demoAccountCount` > 1 so the screen can be walked
- * without an API. A live page shows the server's `select_contact` rows.
+ * HARNESS/EDITOR ONLY — the picker mock's own sample rows (the two same-named
+ * Jane Does the design was drawn around), shown after the offline bypass when
+ * `demoAccountCount` > 1 so the screen can be walked without an API. A live
+ * page shows the server's `select_contact` rows.
  */
 const DEMO_ACCOUNTS = [
-  { id: 'demo-1', name: 'Jane Doe', spaces: 1, phone: '(949) 748-9365' },
-  { id: 'demo-2', name: 'Janey Do', spaces: 2, phone: '(949) 938-7777' },
+  {
+    id: 'demo-1', name: 'Jane Doe', spaces: 2, phone: '(949) 748-9365',
+    rentals: [{ property: 'Storage Outlet Fullerton', spaces: ['#23', '#5674'] }],
+  },
+  {
+    id: 'demo-2', name: 'Jane Doe', spaces: 9, phone: '(949) 748-9365',
+    rentals: [
+      { property: 'Storage Outlet Fullerton', spaces: ['#23', '#5674'] },
+      { property: 'Storage Outlet Bellflower', spaces: ['#8', '#873'] },
+      { property: 'Storage Outlet Huntington Beach', spaces: ['#56', '#873', '#34', '#567', '#987'] },
+    ],
+  },
 ];
 
-/** The verify call's contacts → picker rows. `email` is what the reader typed, if anything. */
-function contactsToAccounts(contacts: AccountContact[], email: string): PickerAccount[] {
+/** "9497489365" (or "1" + it) → "(949) 748-9365"; anything else as given. */
+function formatContactPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+  if (digits.length !== 10) return raw;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+/**
+ * The verify call's contacts → picker rows.
+ *
+ * The contact's OWN email and phone first (the proxy sends them in full since
+ * MRECOM-223 — they are what tells two same-named contacts apart); what the
+ * reader typed, or the legacy masked phone, only when a contact carries none.
+ * A property with no readable unit numbers still gets its line — where the
+ * contact rents is the information, the numbers are detail.
+ */
+function contactsToAccounts(contacts: AccountContact[], typedEmail: string): PickerAccount[] {
   return contacts.map((c, i) => {
     const name = [c.first, c.last].filter(Boolean).join(' ') || c.name || `Account ${i + 1}`;
-    return { id: c.id || String(i), name, email: email || undefined, phone: c.maskedPhone };
+    const rentals: PickerRental[] = (c.properties ?? [])
+      .filter((p) => p.name || p.units.length)
+      .map((p) => ({
+        property: p.name ?? 'Storage facility',
+        spaces: p.units.map((u) => (u.number ? `#${u.number}` : '')).filter(Boolean),
+      }));
+    return {
+      id: c.id || String(i),
+      name,
+      spaces: c.unitCount,
+      email: c.email || typedEmail || undefined,
+      phone: c.phone ? formatContactPhone(c.phone) : c.maskedPhone,
+      rentals,
+    };
   });
 }
 
@@ -355,7 +403,12 @@ function OtpInput({ value, onChange, invalid, onComplete }: OtpInputProps) {
              deserves the same shortcut. The insert lands as one multi-digit
              change, which handleChange spreads from box 0. */
           autoComplete="one-time-code"
-          maxLength={2}
+          /* Room for the WHOLE code, not 2: the keyboard's suggestion honours
+             maxLength when it inserts, so 2 truncated the six digits before
+             handleChange could spread them. The box still DISPLAYS one digit
+             (its value is controlled to value[i]); the limit only has to admit
+             what a single change can carry. */
+          maxLength={OTP_LENGTH}
           value={value[i]?.trim() ?? ''}
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
@@ -655,14 +708,27 @@ export function AccountLogin({
    * Phone digits only: the field carries the display formatting the reader
    * typed, and '(555) 123-4567' is not what was registered.
    */
-  const identifierPayload = useCallback((): Identifier => (
-    kind === 'email'
+  const payloadFor = useCallback((k: IdentifierKind): Identifier => (
+    k === 'email'
       ? { email: identifier.trim() }
       // The 10-digit national number — isPhone also accepts "1" + 10, and
       // that leading country code is dropped here so "+1 (415) …" and
       // "(415) …" reach the proxy as the same identifier.
       : { phone: identifier.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '') }
-  ), [kind, identifier]);
+  ), [identifier]);
+
+  /*
+   * The channel the code was actually SENT to — captured at send time.
+   *
+   * `kind` is live state: it follows the field, and the field follows the
+   * viewport (the phone-first mobile mode). Send an email code at desktop
+   * width, rotate under 768px, and `kind` flips to 'phone' — so a verify or
+   * resend built from `kind` would submit `{ phone: '' }` against a code the
+   * server paired with the email, and the whole verify step would talk about
+   * texting. Everything after the send therefore reads THIS, which only a
+   * new send (or going back to the login) can change.
+   */
+  const [sentKind, setSentKind] = useState<IdentifierKind>('phone');
 
   /** Verified: hand over to the account page, or show the built-in card. */
   const finish = useCallback(() => {
@@ -736,6 +802,8 @@ export function AccountLogin({
     }
     setCode('');
     setCodeError('');
+    // What the verify step works against, whatever the viewport does next.
+    setSentKind(kind);
 
     if (!live) {
       // Nothing to call — harness/editor. Straight to the code step so the
@@ -753,7 +821,7 @@ export function AccountLogin({
      * only feedback would be a wrong-code error six digits later.
      */
     setSending(true);
-    void apiSendCode(api, identifierPayload())
+    void apiSendCode(api, payloadFor(kind))
       .then((r) => {
         if (!r.ok) {
           setIdentifyError(r.message);
@@ -789,7 +857,10 @@ export function AccountLogin({
         return;
       }
 
-      const r = await apiVerifyCode(api, identifierPayload(), candidate.replace(/\s/g, ''));
+      // The channel the code was SENT to, never the field's current one — the
+      // server pairs code and channel, and the field can flip with the
+      // viewport while a code is outstanding.
+      const r = await apiVerifyCode(api, payloadFor(sentKind), candidate.replace(/\s/g, ''));
       if (!r.ok) {
         setCodeError(r.message);
         if (r.detail) console.warn('[#17 login] verify failed:', r.detail);
@@ -839,7 +910,7 @@ export function AccountLogin({
     } finally {
       setChecking(false);
     }
-  }, [checking, bypassCode, successUrl, live, api, identifier, identifierPayload, finish, demoAccountCount, keepLoggedIn]);
+  }, [checking, bypassCode, successUrl, live, api, identifier, payloadFor, sentKind, finish, demoAccountCount, keepLoggedIn]);
 
   /*
    * WebOTP — the texted code offered by the PHONE ITSELF (client request
@@ -866,7 +937,7 @@ export function AccountLogin({
   const submitCodeRef = useRef(submitCode);
   useEffect(() => { submitCodeRef.current = submitCode; }, [submitCode]);
   useEffect(() => {
-    if (step !== 'verify' || kind !== 'phone' || !('OTPCredential' in window)) return undefined;
+    if (step !== 'verify' || sentKind !== 'phone' || !('OTPCredential' in window)) return undefined;
     interface OtpCredentials {
       get(options: { otp: { transport: string[] }; signal: AbortSignal }): Promise<{ code?: string } | null>;
     }
@@ -885,7 +956,7 @@ export function AccountLogin({
       })
       .catch(() => { /* dismissed, aborted, or no readable SMS — manual entry continues */ });
     return () => ac.abort();
-  }, [step, kind]);
+  }, [step, sentKind]);
 
   /*
    * A row of the picker was chosen (step 1c).
@@ -974,7 +1045,7 @@ export function AccountLogin({
      * the reader waiting for a code nobody sent.
      */
     setSending(true);
-    void apiSendCode(api, identifierPayload())
+    void apiSendCode(api, payloadFor(sentKind))
       .then((r) => {
         if (!r.ok) {
           setCodeError(r.message);
@@ -1003,15 +1074,12 @@ export function AccountLogin({
   }
 
   if (step === 'choose') {
-    const email = kind === 'email' ? identifier.trim() : '';
+    const email = sentKind === 'email' ? identifier.trim() : '';
     const accounts: PickerAccount[] = live
       ? contactsToAccounts(pendingContacts, email)
       : DEMO_ACCOUNTS.slice(0, Math.max(2, demoAccountCount)).map((a) => ({
-        id: a.id,
-        name: a.name,
-        spaces: a.spaces,
-        email: email || 'john.doe@tenantinc.com',
-        phone: a.phone,
+        ...a,
+        email: email || 'smartysnoozers@gmail.com',
       }));
     const linkedTo = email || formatDestination(identifier, 'phone');
 
@@ -1051,6 +1119,28 @@ export function AccountLogin({
                         {a.phone && <span className="al-account-phone">{a.phone}</span>}
                       </span>
                     )}
+                    {/* Where this contact rents — the block that tells two
+                        same-named accounts apart (MRECOM-223). One line per
+                        property: "Storage Outlet Fullerton | Space #23, #5674".
+                        Absent entirely on a proxy that predates the field, so
+                        the row collapses to exactly what it showed before. */}
+                    {a.rentals.length > 0 && (
+                      <span className="al-account-rentals">
+                        {a.rentals.map((r, ri) => (
+                          <span className="al-account-rental" key={`${r.property}-${ri}`}>
+                            <span className="al-account-rental-prop">{r.property}</span>
+                            {r.spaces.length > 0 && (
+                              <>
+                                <span className="al-account-rental-sep" aria-hidden="true">|</span>
+                                <span className="al-account-rental-units">
+                                  Space {r.spaces.join(', ')}
+                                </span>
+                              </>
+                            )}
+                          </span>
+                        ))}
+                      </span>
+                    )}
                   </span>
                 </button>
               </li>
@@ -1077,7 +1167,7 @@ export function AccountLogin({
   }
 
   if (step === 'verify') {
-    const destination = formatDestination(identifier, kind);
+    const destination = formatDestination(identifier, sentKind);
     const complete = code.replace(/\s/g, '').length === OTP_LENGTH;
 
     return (
@@ -1085,10 +1175,10 @@ export function AccountLogin({
         <div className="al-card">
           <div className="al-head">
             <h1 className="al-title" tabIndex={-1} ref={otpHeadingRef}>
-              {kind === 'email' ? 'Check your email' : 'Check your texts'}
+              {sentKind === 'email' ? 'Check your email' : 'Check your texts'}
             </h1>
             <p className="al-sub">
-              {kind === 'email' ? 'We emailed' : 'We texted'} a 6-digit code to {destination}.
+              {sentKind === 'email' ? 'We emailed' : 'We texted'} a 6-digit code to {destination}.
               <br />
               It expires in 10 minutes.
             </p>
@@ -1149,9 +1239,9 @@ export function AccountLogin({
                   type="button"
                   className="al-verify-link"
                   disabled={checking || sending}
-                  onClick={() => backToLogin(kind === 'email' ? 'phone' : 'email')}
+                  onClick={() => backToLogin(sentKind === 'email' ? 'phone' : 'email')}
                 >
-                  {kind === 'email' ? 'Text me the code instead' : 'Email me the code instead'}
+                  {sentKind === 'email' ? 'Text me the code instead' : 'Email me the code instead'}
                 </button>
                 <span className="al-verify-sep" aria-hidden="true" />
               </>
@@ -1162,9 +1252,9 @@ export function AccountLogin({
               type="button"
               className="al-verify-link"
               disabled={checking || sending}
-              onClick={() => backToLogin(kind)}
+              onClick={() => backToLogin(sentKind)}
             >
-              {kind === 'email' ? 'Send it to a different email' : 'Send it to a different number'}
+              {sentKind === 'email' ? 'Send it to a different email' : 'Send it to a different number'}
             </button>
           </div>
         </div>

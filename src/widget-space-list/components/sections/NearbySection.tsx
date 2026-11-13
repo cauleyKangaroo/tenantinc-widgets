@@ -137,6 +137,8 @@ function Stars({ rating, size = 16, color = '#FFD000' }: { rating: number; size?
 // ── Property card ─────────────────────────────────────────────────────────────
 
 function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
+  // The property's own page — where Select goes. No slug ⇒ nowhere to point.
+  const propertyHref = p.slug ? `${PROPERTY_BASE_PATH}/${p.slug.replace(/^\/+/, '')}` : undefined;
   return (
     <div className="sl-nb2-card">
 
@@ -209,7 +211,14 @@ function PropertyCard({ p, index }: { p: NearbyProperty; index: number }) {
                       <span className="sl-nb2-starting-label">STARTING AT</span>
                       <span className="sl-nb2-starting-price">${u.startingAt}</span>
                     </div>
-                    <button type="button" className="sl-nb2-select" aria-label={`Select ${u.dimensions} at ${p.name}`}>Select</button>
+                    <button
+                      type="button"
+                      className="sl-nb2-select"
+                      aria-label={`Select ${u.dimensions} at ${p.name}`}
+                      onClick={propertyHref ? () => { window.location.href = propertyHref; } : undefined}
+                    >
+                      Select
+                    </button>
                   </div>
                 </div>
               ))}
