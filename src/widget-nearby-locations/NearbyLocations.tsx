@@ -28,7 +28,7 @@ import {
   getUserLocation,
   haversineMiles,
   fetchSpacesForProperties,
-  fetchSubtypesForProperties,
+  fetchDetailsForProperties,
   formatDistance,
   fetchPriorityOrder,
   sortByPriorityThenName,
@@ -1242,38 +1242,57 @@ export function NearbyLocations({
 
 
   /*
-   * SUBTITLES for the cards on screen (Figma 9695-69101: "Climate Controlled"
-   * under "5' x 5'").
+   * SUBTITLES + the PROMO BANNER for the cards on screen (Figma 9695-69101:
+   * "Climate Controlled" under "5' x 5'").
    *
-   * The batched prices carry no amenities, so a card priced by the batch has
-   * empty subtitles. This asks the per-property endpoint — which does carry
-   * them — for the VISIBLE cards only, once each, after their spaces land, and
-   * merges each tier's main amenity in by tier id. The subtitle line is
-   * reserved in CSS, so filling it in moves nothing.
+   * The batched prices carry no amenities AND only the stale legacy promo
+   * field, so a card priced by the batch has empty subtitles and a withheld
+   * banner (`promoPending` — a wrong promotion is worse than a late one;
+   * verified 2026-11-13 that the legacy field names ended promos on most Stop
+   * N Stor facilities). This asks the per-property endpoint — which carries
+   * both — for the VISIBLE cards only, once each, after their spaces land:
+   * each tier's main amenity merges in by tier id, and the banner is set from
+   * the CURRENT promo field. Both lines are reserved in the layout, so
+   * filling them in moves nothing.
    *
    * A space that already has a subtitle (the per-property chain priced it) is
-   * left alone, and a property is never asked twice.
+   * left alone — its promo was read from the current field too — and a
+   * property is never asked twice. A failed lookup (null) changes nothing: a
+   * missing banner is the state the card was already in.
    */
   const subtypesAsked = useRef(new Set<string>());
   useEffect(() => {
     if (!apiProperties) return undefined;
     const want = apiProperties
       .filter((p) => visibleIds.includes(p.id) && !subtypesAsked.current.has(p.id))
-      .filter((p) => p.spaces && p.spaces.some((s) => !s.subtype))
+      .filter((p) => p.spaces && (
+        p.spaces.some((s) => !s.subtype) || spacesCache.current.get(p.id)?.promoPending
+      ))
       .map((p) => p.id);
     if (!want.length) return undefined;
     want.forEach((id) => subtypesAsked.current.add(id));
 
     const forCompany = companyId;
-    fetchSubtypesForProperties(want, (id, subtypes) => {
-      if (spacesCompany.current !== forCompany || !subtypes.size) return;
+    fetchDetailsForProperties(want, (id, details) => {
+      if (spacesCompany.current !== forCompany || !details) return;
       const fill = (spaces: NearbySpace[]) => spaces.map((s) => (
-        s.subtype || !s.tierId ? s : { ...s, subtype: subtypes.get(s.tierId) ?? '' }
+        s.subtype || !s.tierId ? s : { ...s, subtype: details.subtypes.get(s.tierId) ?? '' }
       ));
+      // The banner only lands on a card whose batch-priced promo was withheld;
+      // details.promo being undefined there means "no promotion", confirmed.
       const cached = spacesCache.current.get(id);
-      if (cached) spacesCache.current.set(id, { ...cached, spaces: fill(cached.spaces) });
+      const promoWasPending = cached?.promoPending === true;
+      if (cached) {
+        spacesCache.current.set(id, {
+          ...cached,
+          spaces: fill(cached.spaces),
+          ...(promoWasPending ? { promo: details.promo, promoPending: false } : {}),
+        });
+      }
       setApiProperties((prev) => (prev
-        ? prev.map((p) => (p.id === id && p.spaces ? { ...p, spaces: fill(p.spaces) } : p))
+        ? prev.map((p) => (p.id === id && p.spaces
+          ? { ...p, spaces: fill(p.spaces), ...(promoWasPending ? { promo: details.promo } : {}) }
+          : p))
         : prev));
     }).catch(() => { /* fails soft: the line stays empty, as before */ });
     return undefined;

@@ -507,7 +507,43 @@ export function AccountLogin({
   // 'phone' mode can be switched to email in-session by the "Login with Email"
   // button, so the prop seeds this rather than driving it.
   const [forceEmail, setForceEmail] = useState(false);
-  const fieldMode = forceEmail ? 'email' : identifierMode;
+
+  /*
+   * PHONES GET A PHONE-FIRST FIELD (client request 2026-11-13, mobile only).
+   *
+   * The mixed "Mobile Number or Email" field has to open the QWERTY keyboard
+   * (an email could never be started on a tel keypad), so on a phone the
+   * common case — a tenant signing in with their number — paid with the
+   * wrong keyboard. Below 768px the mixed mode therefore opens as a phone
+   * field (numeric keypad, "Mobile Number") with a small "Login with Email"
+   * link under it that swaps the field to email and back. Desktop keeps the
+   * one mixed field, and the explicit 'phone'/'email' modes keep their
+   * configured behaviour everywhere.
+   *
+   * VIEWPORT width, not the wrapper's: the login column is narrow on any
+   * screen, and what this really switches on is which on-screen keyboard the
+   * device shows, which tracks the viewport (Duda's mobile preview included),
+   * never the widget's box.
+   */
+  const [mobileView, setMobileView] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const apply = () => setMobileView(mq.matches);
+    apply();
+    // addEventListener on a MediaQueryList is iOS 14+; the deprecated pair
+    // keeps older WebKit working rather than crashing the whole card.
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', apply);
+      return () => mq.removeEventListener('change', apply);
+    }
+    mq.addListener(apply);
+    return () => mq.removeListener(apply);
+  }, []);
+  /** Which field the phone-first mixed mode is showing right now. */
+  const [mobileKind, setMobileKind] = useState<IdentifierKind>('phone');
+  const mixedPhoneFirst = identifierMode === 'phoneOrEmail' && mobileView;
+
+  const fieldMode = mixedPhoneFirst ? mobileKind : (forceEmail ? 'email' : identifierMode);
 
   const [identifier, setIdentifier] = useState('');
   const [propertyId, setPropertyId] = useState('');
@@ -824,9 +860,16 @@ export function AccountLogin({
     }
   };
 
-  /** Code step → plain login, landing on the email field when `toEmail`. */
-  const backToLogin = (toEmail: boolean) => {
-    setForceEmail(toEmail);
+  /**
+   * Code step → plain login, landing on `target`'s field.
+   *
+   * Both the 'phone' mode's email hatch and the phone-first mobile field hold
+   * their channel as STATE, so a link whose label promises a channel ("Email
+   * me the code instead") must set the field it lands on, not merely return.
+   */
+  const backToLogin = (target: IdentifierKind) => {
+    setForceEmail(identifierMode === 'phone' && target === 'email');
+    setMobileKind(target);
     setIdentifier('');
     setIdentifyError('');
     setCode('');
@@ -1029,7 +1072,7 @@ export function AccountLogin({
                   type="button"
                   className="al-verify-link"
                   disabled={checking || sending}
-                  onClick={() => backToLogin(identifierMode === 'phone' && kind === 'phone')}
+                  onClick={() => backToLogin(kind === 'email' ? 'phone' : 'email')}
                 >
                   {kind === 'email' ? 'Text me the code instead' : 'Email me the code instead'}
                 </button>
@@ -1042,7 +1085,7 @@ export function AccountLogin({
               type="button"
               className="al-verify-link"
               disabled={checking || sending}
-              onClick={() => backToLogin(identifierMode === 'phone' && kind === 'email')}
+              onClick={() => backToLogin(kind)}
             >
               {kind === 'email' ? 'Send it to a different email' : 'Send it to a different number'}
             </button>
@@ -1117,6 +1160,30 @@ export function AccountLogin({
               <label className="al-field-label" htmlFor="al-identifier">{placeholder}</label>
               {identifierValid && <CheckTick size={24} className="al-field-check" />}
             </div>
+
+            {/* The phone-first mobile field's way into (and back out of) email —
+                see `mixedPhoneFirst`. A small link under the field rather than
+                the 'phone' mode's full-width OR button: on a 350px card that
+                button reads as a second call to action. The identifier is
+                cleared on switch because a half-typed number is not a usable
+                start of an email (and the reverse). Locked while a send is in
+                flight, same as every other channel switch here. */}
+            {mixedPhoneFirst && (
+              <div className="al-switch">
+                <button
+                  type="button"
+                  className="al-verify-link al-switch-link"
+                  disabled={sending}
+                  onClick={() => {
+                    setMobileKind(mobileKind === 'phone' ? 'email' : 'phone');
+                    setIdentifier('');
+                    setIdentifyError('');
+                  }}
+                >
+                  {mobileKind === 'phone' ? 'Login with Email' : 'Login with Phone Number'}
+                </button>
+              </div>
+            )}
 
             {/* Reserved for the same reason as the code step's: a failed send
                 is reported after the round trip, not on the click. */}

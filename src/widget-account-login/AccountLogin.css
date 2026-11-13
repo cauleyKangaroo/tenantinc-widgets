@@ -457,6 +457,19 @@
   cursor: default;
 }
 
+/* ── Phone-first mobile field's channel switch ─────────────────────────────────
+   "Login with Email" under the identifier field (mixed mode, <768px only — the
+   row only renders there, so no media query). Pulled up against the field: it
+   belongs to it, not to the error slot and button that follow. */
+.al-switch {
+  margin-top: -14px; /* 24px column gap → 10px under the field */
+  text-align: center;
+}
+
+.al-switch-link {
+  font-size: 13px;
+}
+
 /* ── Account picker (Figma 12667:34621) ────────────────────────────────────── */
 /* A wider card than the code steps: 475px rows inside 60px sides. The frame's
    gaps are uneven (15 under the copy, 13 between rows, 20 above the note), so
