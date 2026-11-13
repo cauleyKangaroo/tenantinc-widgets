@@ -161,6 +161,7 @@ function SpaceRow({
   enableValueTiers,
   valueTiersChannel,
   valueTiersPageUrl,
+  propertyHref,
 }: {
   space: Space;
   /** The facility this space belongs to — what makes the handoff unambiguous on
@@ -174,6 +175,9 @@ function SpaceRow({
   enableValueTiers: boolean;
   valueTiersChannel?: string;
   valueTiersPageUrl?: string;
+  /** The facility's own page. When set, Select goes there instead of the
+   *  value-tiers step or the rental page (which stay for a row with no slug). */
+  propertyHref?: string;
 }) {
   /**
    * Where Select points, mirroring #05's `CtaButton`:
@@ -187,7 +191,7 @@ function SpaceRow({
    *  3. **No value-tiers step** — straight to the rental page
    *     (`/rent-or-reserve` by default; see `DEFAULT_NEARBY_RENTAL_PATH`).
    */
-  const tiersHref = enableValueTiers && valueTiersPageUrl
+  const tiersHref = !propertyHref && enableValueTiers && valueTiersPageUrl
     ? `${valueTiersPageUrl}?${new URLSearchParams({
         size: space.size,
         ...(space.unitGroupId ? { unitGroupId: space.unitGroupId } : {}),
@@ -201,7 +205,7 @@ function SpaceRow({
     // the params carry it.
     if (tiersHref) return;
 
-    if (enableValueTiers) {
+    if (enableValueTiers && !propertyHref) {
       // #14's modal is not scoped by property — it ADOPTS the emitted one as its
       // API context (see onOpenTiers in TierSelection.tsx), so an unchanneled
       // modal on this page serves a nearby facility correctly.
@@ -265,7 +269,7 @@ function SpaceRow({
         {space.tierId ? (
           <a
             className="nl-select-btn"
-            href={tiersHref ?? rentalHref(rentalPageUrl || DEFAULT_NEARBY_RENTAL_PATH)}
+            href={propertyHref ?? tiersHref ?? rentalHref(rentalPageUrl || DEFAULT_NEARBY_RENTAL_PATH)}
             onClick={onSelect}
           >
             Select
@@ -480,6 +484,7 @@ function PropertyCard({
                       enableValueTiers={enableValueTiers}
                       valueTiersChannel={valueTiersChannel}
                       valueTiersPageUrl={valueTiersPageUrl}
+                      propertyHref={propertyHref}
                     />
                   ) : (
                     <ReservedSpaceRow />
