@@ -2425,6 +2425,7 @@ export function RentalFlow2Step({
     const keyForThis = choiceKey;
     setUnpricedChoice(keyForThis);
     let cancelled = false;
+    let settled = false;
     const failed = () => {
       if (cancelled) return; // superseded by a newer choice, which owns the flag now
       if (requoteRetriedFor.current !== keyForThis) {
@@ -2445,6 +2446,7 @@ export function RentalFlow2Step({
       paymentCycle,
     })
       .then((q) => {
+        settled = true;
         if (cancelled) return;
         if (!q) { failed(); return; }
         setQuote(q);
@@ -2457,10 +2459,22 @@ export function RentalFlow2Step({
       // last figure the API actually stood behind. `unpricedChoice` stays set,
       // so that figure can be LOOKED at but not PAID.
       .catch((err) => {
+        settled = true;
         console.warn(`${logTag} re-quote after a choice change failed — keeping the previous total (payment blocked until it reprices):`, err);
         failed();
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      /* A dep can change identity without changing the key (re-picking the
+         same calendar day makes a new `moveIn` Date). The re-run would then
+         skip the fetch — the key reads as already quoted — while this run's
+         response is ignored, leaving `unpricedChoice` set with nothing left
+         to clear it: payment locked until some OTHER choice changes. So a
+         request abandoned mid-flight un-marks its key; any re-run with that
+         key fetches again and owns the flag. A settled one stays marked —
+         its quote (or its retry) already resolved the flag. */
+      if (!settled && quotedChoice.current === keyForThis) quotedChoice.current = 'abandoned';
+    };
   }, [quoteAnchor, step, choiceKey, insuranceId, nokeTier, moveIn, paymentCycle, selection, ctx, logTag, requoteNonce]);
 
   /*
