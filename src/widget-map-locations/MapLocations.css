@@ -74,14 +74,19 @@
   flex-wrap: wrap;
 }
 
+/* An h1, so Duda's theme H1 rules reach it: every declaration is !important. */
 .ml-heading {
-  font-size: 28px;
+  font-family: inherit !important;
+  font-size: 28px !important;
   /* 1.25, as 40/32 was — kept as a ratio so the leading follows the size
      rather than having to be recalculated next time it moves. */
-  line-height: 1.25;
-  font-weight: 700;
-  color: #141a2b;
-  margin: 0;
+  line-height: 1.25 !important;
+  font-weight: 700 !important;
+  color: #141a2b !important;
+  margin: 0 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  text-align: left !important;
 }
 
 .ml-controls { display: flex; gap: 16px; align-items: center; }
@@ -1224,10 +1229,10 @@
   .ml-wrapper { padding-inline: 24px; gap: 16px; }
 
   .ml-heading {
-    font-size: 18px;
-    font-weight: 600;
-    line-height: 22.5px;
-    color: #141a2b;
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    line-height: 22.5px !important;
+    color: #141a2b !important;
   }
 
   .ml-seo-heading { font-size: 28px; line-height: 1.25; }

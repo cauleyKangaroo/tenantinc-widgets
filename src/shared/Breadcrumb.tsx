@@ -42,7 +42,11 @@ function ensureStyles() {
    side (see .ti-crumb-sep--text).
    !important because a Duda theme's own a / a:hover rules land on these links
    too, and this sheet is injected at runtime with no specificity to spare. */
-.ti-crumb-link { color: inherit; text-decoration: none !important; }
+.ti-crumb-link { color: inherit; text-decoration: none !important;
+  /* A 24px tap target (WCAG 2.5.8, flagged by SWAT) on a 20px line: the
+     padding grows the hit box, the negative margin gives the space back, so
+     the trail lays out exactly as before. */
+  display: inline-block; padding-block: 2px; margin-block: -2px; }
 .ti-crumb-link:hover,
 .ti-crumb-link:focus-visible { text-decoration: underline !important; }
 @media (max-width: 768px) {

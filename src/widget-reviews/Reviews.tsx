@@ -103,11 +103,9 @@ function SourceHeader({ source }: { source: ReviewSource }) {
         href={source.reviewsUrl || undefined}
         target={source.reviewsUrl ? '_blank' : undefined}
         rel={source.reviewsUrl ? 'noopener noreferrer' : undefined}
-        // A label is only allowed on a real link; without an href the <a> is
-        // generic and its text is read as-is.
-        aria-label={source.reviewsUrl
-          ? `See ${source.name} reviews: ${source.score} out of 5 from ${source.count} ratings`
-          : undefined}
+        // No aria-label: the name comes from the content ("Google 4.3 / 5 264
+        // ratings"). A rewritten label failed WCAG 2.5.3 Label in Name — the
+        // visible text has to be part of the name (SWAT, 2026-11-13).
       >
         <PlatformLogo platform={source.key} />
         <div className="rw-source-score-block">

@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useState } from 'react';
 import { Checkbox } from '@shared/ui/Checkbox';
 import { FormField, type FieldType } from '@shared/ui/FormField';
+import { linkHref } from '@shared/propertyBinding';
 import { isPossiblePhone } from '@shared/ui/phone';
 import { AlertIcon } from '@shared/ui/icons';
 import type { LeadInput } from '@shared/leadsApi';
@@ -402,7 +403,7 @@ export function LeadForm({
         {attempted && !consent && (
           <p className="pi-msg-field-error pi-msg-field-error--consent" id={consentErrorId} role="alert">Please agree to receive messages to continue</p>
         )}
-        <a className="pi-msg-terms" href={termsHref}>Click to see our Terms and Privacy Policy</a>
+        <a className="pi-msg-terms" href={linkHref(termsHref)}>Click to see our Terms and Privacy Policy</a>
 
         {/* Only a SEND failure lands here now; field faults sit at their fields. */}
         {error && (

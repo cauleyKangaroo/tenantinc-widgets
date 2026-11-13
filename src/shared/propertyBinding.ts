@@ -115,6 +115,15 @@ export function boundLink(v: unknown): { href: string; target?: string } | null 
   return href ? { href } : null;
 }
 
+/**
+ * `boundLink` for a prop that goes straight into an `href`. Used raw, a Duda
+ * Link field becomes `href="[object Object]"` — a relative URL that 400s and
+ * that the SWAT audit counted as 14 broken links per site (2026-11-13).
+ */
+export function linkHref(v: unknown, fallback = '#'): string {
+  return boundLink(v)?.href ?? fallback;
+}
+
 export function boundText(v: unknown): string {
   if (v == null) return '';
   const s = str(v).trim();

@@ -50,7 +50,7 @@ import { ProcessingModal } from './ProcessingModal';
 import { SuccessStep } from './SuccessStep';
 import { Shimmer } from '@shared/Shimmer';
 import { FormField, Button, DateModal, AlertIcon, formatPrice, capitalizeFirst, isPossiblePhone, type FieldType, type PhoneCountry } from '@shared/ui';
-import { resolvePropertyId, boundText } from '@shared/propertyBinding';
+import { resolvePropertyId, boundText, linkHref } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { fetchIdvRequirementSetting, fetchPropertySlug, fetchSingleStep, fetchReviewIds } from '@shared/internalProperties';
 import { normaliseBasePath } from '@shared/propertyNav';
@@ -776,7 +776,7 @@ function Step1Form({
             By providing your mobile number, you agree to receive text messages from
             {' '}{brandName}. Message frequency may vary. Standard rates apply. Reply HELP
             for assistance or STOP to unsubscribe.{' '}
-            <a href={termsHref}>See Terms and Privacy Policy.</a>
+            <a href={linkHref(termsHref)}>See Terms and Privacy Policy.</a>
           </p>
         )}
 

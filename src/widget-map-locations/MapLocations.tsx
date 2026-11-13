@@ -297,9 +297,13 @@ function PropertyCard({
             {Icon.pin}<span>{facility.address}</span>
           </a>
 
-          <a className="ml-card-row" href={`tel:${facility.phone.replace(/[^0-9+]/g, '')}`}>
-            {Icon.phone}<span>{facility.phone}</span>
-          </a>
+          {/* No number, no row: an empty `tel:` link is a dead control the SWAT
+              audit flags three ways (invalid tel, no link text, link purpose). */}
+          {facility.phone.replace(/[^0-9+]/g, '') && (
+            <a className="ml-card-row" href={`tel:${facility.phone.replace(/[^0-9+]/g, '')}`}>
+              {Icon.phone}<span>{facility.phone}</span>
+            </a>
+          )}
         </div>
       </div>
 
@@ -1333,14 +1337,17 @@ export function MapLocations({
             </div>
           </div>
 
-          <p className="ml-heading" role="status">
+          {/* The page's h1 (SWAT: city/state pages had none). The live region
+              sits inside it: role="status" on the h1 itself would replace the
+              heading role. */}
+          <h1 className="ml-heading"><span role="status">
             {/* The count is unknown until the response lands; "0 Self Storage
                 Facilities in Fullerton" reads as a finished, empty page. */}
             {loading
               ? <Shimmer w={28} h={20} style={{ display: 'inline-block', verticalAlign: '-3px' }} />
               : facilities.length}
             {' '}Self Storage {facilities.length === 1 ? 'Facility' : 'Facilities'} in {cityLabel}
-          </p>
+          </span></h1>
         </>
       ) : (
         /* Desktop — breadcrumb, then count on the left and Filter + sort pills
@@ -1348,12 +1355,12 @@ export function MapLocations({
         <div className="ml-sticky-head" ref={headRef}>
         <Breadcrumb items={crumbs} />
         <div className="ml-header">
-          <p className="ml-heading" role="status">
+          <h1 className="ml-heading"><span role="status">
             {loading
               ? <Shimmer w={28} h={20} style={{ display: 'inline-block', verticalAlign: '-3px' }} />
               : facilities.length}
             {' '}Storage {facilities.length === 1 ? 'Facility' : 'Facilities'} in {cityLabel}
-          </p>
+          </span></h1>
           <div className="ml-controls">
             <button
               type="button"

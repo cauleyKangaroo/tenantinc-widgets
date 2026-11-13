@@ -35,7 +35,10 @@ export function createWidget<TProps extends object>(Component: React.ComponentTy
     if (!root) {
       mountEl = document.createElement('div');
       container.appendChild(mountEl);
-      root = createRoot(mountEl);
+      // Every widget is its own root, and useId() numbers from ":r0:" in each,
+      // so two widgets on a page minted the same ids (SWAT duplicate-id-aria,
+      // 2026-11-13). A module counter would restart in every bundle, hence random.
+      root = createRoot(mountEl, { identifierPrefix: `w${Math.random().toString(36).slice(2, 8)}-` });
       rootContainer = container;
     }
     // createElement can't resolve its overloads against an unconstrained

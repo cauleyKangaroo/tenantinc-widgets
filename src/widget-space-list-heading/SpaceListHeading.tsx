@@ -176,7 +176,13 @@ export function SpaceListHeading({
 
   return (
     <div className="slh-wrapper" ref={rootRef}>
-      <h1 className="slh-title">{title}</h1>
+      {/* A level-1 heading, but not an <h1> TAG. #05 draws the same title as a
+          real <h1> above 768px and this one shows only below it, so a reader
+          only ever meets one — yet both tags are in the HTML, and SEO crawlers
+          count tags: SWAT flagged "2 <h1> elements" on every facility page
+          (2026-11-13). display:none drops this from the accessibility tree on
+          desktop, so the role costs nothing there. */}
+      <div className="slh-title" role="heading" aria-level={1}>{title}</div>
     </div>
   );
 }

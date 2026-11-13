@@ -7,7 +7,7 @@ import './Promotions.css';
 import { fetchSpaceGroups, extractPromos, configureApi, credsWithCompany, type ApiPromo, type ApiCredProps } from './api';
 import cfg from './config.json';
 import { fetchWebsiteSpaceGroupId } from '@shared/spaceGroups';
-import { resolvePropertyId } from '@shared/propertyBinding';
+import { resolvePropertyId, linkHref } from '@shared/propertyBinding';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { imageUrl } from '@shared/dudaCollections';
 import { emitShowPromo, scrollToPromoResults } from '@shared/promoBus';
@@ -539,7 +539,7 @@ export function Promotions({
 
     return (
       <div className="promo-wrapper">
-        <a className={mobileSrc ? 'promo-banner promo-banner--has-mobile' : 'promo-banner'} href={bannerUrl}>
+        <a className={mobileSrc ? 'promo-banner promo-banner--has-mobile' : 'promo-banner'} href={linkHref(bannerUrl)}>
           {/* Always a <picture>: <source> is what lets the browser pick before
               it fetches, so the wrong-size image is never downloaded. With no
               mobile art there is simply no <source> and the <img> stands alone. */}
@@ -580,7 +580,7 @@ export function Promotions({
         id: `demo-${i}`,
         title: DEMO_TITLES[i % DEMO_TITLES.length],
         info: 'Placeholder terms. Offer applies to new rentals only and cannot be combined with any other promotion.',
-        url: barUrl,
+        url: linkHref(barUrl),
         ctaLabel: barCtaLabel,
       }))
     : apiPromos.length
@@ -588,7 +588,7 @@ export function Promotions({
         id: p.id,
         title: p.title,
         info: p.info,
-        url: barUrl,
+        url: linkHref(barUrl),
         ctaLabel: barCtaLabel,
       }))
     : [];
