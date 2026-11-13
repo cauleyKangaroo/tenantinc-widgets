@@ -4,7 +4,7 @@ import {
   extractNearbyProperties,
   fetchPropertySpaces as sharedFetchPropertySpaces,
   fetchSpaceGroupSpaces,
-  fetchTierSubtypes,
+  fetchTierDetails,
   getUserLocation,
   haversineMiles,
   formatDistance,
@@ -12,6 +12,7 @@ import {
   type NearbyBaseProperty,
   type NearbySpace,
   type PropertySpaceData,
+  type TierDetails,
 } from '@shared/nearbyProperties';
 import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { createApiCredsStore, type ApiCredProps } from '@shared/apiConfig';
@@ -31,7 +32,7 @@ import { logSource } from '@shared/dudaCollections';
 
 export { getUserLocation, haversineMiles, formatDistance };
 export { fetchPriorityOrder, sortByPriorityThenName, INTERNAL_PROPERTIES_COLLECTION };
-export type { NearbySpace };
+export type { NearbySpace, TierDetails };
 
 /** A card-ready property once distance/spaces/promo are attached. */
 export interface NearbyProperty extends NearbyBaseProperty {
@@ -272,17 +273,19 @@ async function portfolioSpaces(): Promise<Map<string, PropertySpaces> | null> {
  * bad property can never reject the batch and blank the rest of the page.
  */
 /**
- * Subtitles (main amenity per tier id) for the given properties — the line the
- * batched prices cannot carry. Only properties whose space group the
- * collection names are looked up; the rest got their spaces from the
- * per-property chain, which already includes amenities.
+ * Subtitles AND the banner promo for the given properties — the details the
+ * batched prices cannot carry (no amenities; only the stale legacy promo
+ * field, so the batch withholds the banner — see `promoPending`). Only
+ * properties whose space group the collection names are looked up; the rest
+ * got their spaces from the per-property chain, which already includes both.
  *
  * One request per property, in parallel. `onResult` fires per property with
- * whatever came back (possibly an empty map); never throws.
+ * the details, or NULL when the lookup failed or no group is curated — the
+ * caller keeps what the card already shows. Never throws.
  */
-export async function fetchSubtypesForProperties(
+export async function fetchDetailsForProperties(
   propertyIds: string[],
-  onResult: (propertyId: string, subtypes: Map<string, string>) => void,
+  onResult: (propertyId: string, details: TierDetails | null) => void,
 ): Promise<void> {
   if (!propertyIds.length) return;
   try {
@@ -291,10 +294,10 @@ export async function fetchSubtypesForProperties(
     const api = { ...base, companyId: companyId || base.companyId };
     await Promise.all(propertyIds.map(async (id) => {
       const group = groupByProperty.get(id);
-      onResult(id, group ? await fetchTierSubtypes(api, id, group) : new Map());
+      onResult(id, group ? await fetchTierDetails(api, id, group) : null);
     }));
   } catch {
-    for (const id of propertyIds) onResult(id, new Map());
+    for (const id of propertyIds) onResult(id, null);
   }
 }
 

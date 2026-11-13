@@ -45,6 +45,18 @@ export interface NearbySpace {
 /** One facility's card data: its cheapest spaces and its first promotion. */
 export interface PropertySpaceData {
   promo?: string;
+  /**
+   * The promo could not be trusted from this source and was withheld.
+   *
+   * Only the BATCHED endpoint sets it: that response carries the legacy
+   * `allocated_promo` field alone, which is stale against the live promotions
+   * (verified 2026-11-13 on Stop N Stor: 11 of 14 facilities' legacy fields
+   * named promos — "$1 Move-In", "10% OFF" — that `promo[]` says ended, and
+   * one facility's real promo was missing entirely). A wrong banner is worse
+   * than a late one, so the batch prices the card and the per-property
+   * detail call (`fetchTierDetails`) supplies the banner.
+   */
+  promoPending?: boolean;
   spaces: NearbySpace[];
 }
 
@@ -144,6 +156,14 @@ interface ApiTier {
   units?: { count: number; min_price: number | null; max_price: number | null };
   vacant?: { count: number };
   amenities?: ApiAmenity[];
+  /**
+   * Promotion(s) on the tier. Same API shape change #05/#06 already read
+   * (seen 2026-07-31): `promo` is the CURRENT field, an array; `allocated_promo`
+   * is the legacy object, and live data shows it stale wherever the operator
+   * has since changed promotions. The batched v1 route still sends only the
+   * legacy field; the per-property v2 route sends both.
+   */
+  promo?: Array<{ id?: string; name?: string }>;
   allocated_promo?: { id?: string; name?: string } | Record<string, never>;
 }
 interface ApiGroup { name: string; tiers: ApiTier[]; }
@@ -404,7 +424,13 @@ export async function fetchSpaceGroupSpaces(
     if (!profile) return out;
 
     for (const [groupId, node] of Object.entries(profile)) {
-      out.set(groupId, spacesFromGroups(groupsUnder(node)));
+      // PRICES ONLY — the banner promo is withheld. This v1 response carries
+      // just the legacy `allocated_promo`, which live data shows naming ended
+      // promotions (and missing current ones) wherever the operator changed
+      // them since allocation. The per-property detail call supplies the
+      // banner from the CURRENT field instead; `promoPending` is the handover.
+      const data = spacesFromGroups(groupsUnder(node));
+      out.set(groupId, { ...data, promo: undefined, promoPending: true });
     }
     return out;
   } catch {
@@ -441,10 +467,10 @@ function groupsUnder(node: unknown): ApiGroup[] {
  * Shared by both routes so the batched call cannot drift from the per-property
  * one: a card must look identical whichever fetched it.
  *
- * The promo is read from ALL tiers, before the vacancy filter, because a promo
- * belongs to the facility rather than to the space that happens to be cheapest —
- * dropping it with a full tier would make the banner flicker in and out as
- * occupancy changes.
+ * The promo is read from ALL tiers (vacant ones first — see the note inside),
+ * because a promo belongs to the facility rather than to the space that happens
+ * to be cheapest — dropping it with a full tier would make the banner flicker
+ * in and out as occupancy changes.
  */
 /**
  * The line under a space's size: its main amenity ('' when it has none).
@@ -462,56 +488,101 @@ function mainAmenity(t: ApiTier): string {
 }
 
 /**
- * Main amenity per tier id, for ONE property's space group — the subtitles the
- * batched call cannot supply.
+ * What one property's detail call yields — the pieces the BATCHED pricing call
+ * cannot be trusted for, read from the per-property route in one request.
+ *
+ * `promo` is the facility's banner promotion per the CURRENT `promo[]` field.
+ * **Undefined means "this facility has no promotion", not "unknown"** — a
+ * failed request returns null for the whole object instead, so the caller can
+ * tell the two apart and never clears a banner over a network error.
+ */
+export interface TierDetails {
+  /** Main amenity per tier `id` (what `NearbySpace.tierId` carries). */
+  subtypes: Map<string, string>;
+  promo?: string;
+}
+
+/**
+ * Subtitles + the banner promo for ONE property's space group — the details
+ * the batched call cannot supply.
  *
  * `fetchSpaceGroupSpaces` (the batched `/space-groups?space_group_id=…`) returns
  * every tier with an EMPTY `amenities` array — verified 2026-10-07 on 149 tiers,
- * and no query flag adds them — while this per-property route carries them. So
- * the batch prices the cards and this fills in the line under each size, for
- * the cards on screen only. One request: the group id is already known from
- * PropertiesInternal, so the space-groups list call is skipped.
+ * and no query flag adds them — and only the STALE legacy promo field (see
+ * `promoPending`), while this per-property route carries both. So the batch
+ * prices the cards and this fills in the line under each size and the promo
+ * banner, for the cards on screen only. One request: the group id is already
+ * known from PropertiesInternal, so the space-groups list call is skipped.
  *
- * Keyed by tier `id`, which is what `NearbySpace.tierId` carries. Fails soft to
- * an empty map: a card without subtitles is the state it was already in.
+ * Fails soft to NULL: the caller keeps whatever the card already shows.
  */
-export async function fetchTierSubtypes(
+export async function fetchTierDetails(
   cfg: NearbyApiConfig,
   propertyId: string,
   spaceGroupId: string,
-): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
+): Promise<TierDetails | null> {
   try {
     const res = await fetch(
       `${companyBase(cfg)}/properties/${propertyId}/space-groups/${spaceGroupId}/groups`,
       { headers: headers(cfg), signal: timeoutSignal(TIMEOUTS.request) },
     );
-    if (!res.ok) return out;
+    if (!res.ok) return null;
     const json = (await res.json()) as GroupsResponse;
     const profile = json?.applicationData?.[cfg.appId]?.[0]?.data?.spaceGroupProfile;
-    if (!profile) return out;
-    for (const prof of Object.values(profile)) {
-      for (const g of prof.groups ?? []) {
-        for (const t of g.tiers ?? []) {
-          const label = mainAmenity(t);
-          if (t.id && label) out.set(t.id, label);
-        }
+    if (!profile) return null;
+    const subtypes = new Map<string, string>();
+    const groups: ApiGroup[] = [];
+    for (const prof of Object.values(profile)) groups.push(...(prof.groups ?? []));
+    for (const g of groups) {
+      for (const t of g.tiers ?? []) {
+        const label = mainAmenity(t);
+        if (t.id && label) subtypes.set(t.id, label);
       }
     }
-  } catch { /* fail soft — see above */ }
-  return out;
+    // Same selection the per-property pricing route uses, so a card's banner
+    // is identical whichever call supplied it.
+    const { promo } = spacesFromGroups(groups);
+    return { subtypes, promo };
+  } catch {
+    return null; /* fail soft — see above */
+  }
+}
+
+/**
+ * The tier's promotion name — the CURRENT `promo[]` field first, the legacy
+ * `allocated_promo` object only when the response has no modern field at all.
+ * Mirrors `tierPromo`/`tierPromos` in #05/#06. An empty `promo: []` counts as
+ * "no promotion", NOT as "fall back to legacy": on responses that carry both,
+ * the legacy field is exactly where the stale names live.
+ */
+function tierPromoName(t: ApiTier): string | undefined {
+  if (Array.isArray(t.promo)) return t.promo.find((p) => p && p.id && p.name)?.name;
+  const legacy = t.allocated_promo;
+  return legacy && 'id' in legacy && legacy.name ? legacy.name : undefined;
 }
 
 function spacesFromGroups(groups: ApiGroup[]): PropertySpaceData {
   const tiers: ApiTier[] = [];
   for (const g of groups) tiers.push(...(g.tiers ?? []));
 
-  let promo: string | undefined;
+  /*
+   * The banner promo: the first promotion on a tier someone can actually book,
+   * else the first on any tier. The promo still belongs to the FACILITY (all
+   * tiers are candidates, so the banner doesn't flicker with occupancy), but a
+   * promotion that survives only on sold-out tiers no longer outranks one a
+   * shopper can have.
+   */
+  const promoOf = (ts: ApiTier[]): string | undefined => {
+    for (const t of ts) {
+      const name = tierPromoName(t);
+      if (name) return name;
+    }
+    return undefined;
+  };
+  const promo = promoOf(tiers.filter((t) => (t.vacant?.count ?? 0) > 0)) ?? promoOf(tiers);
+
   const spaces: NearbySpace[] = [];
   for (const t of tiers) {
-    if (!promo && t.allocated_promo && 'id' in t.allocated_promo && t.allocated_promo.name) {
-      promo = t.allocated_promo.name;
-    }
     // Only offer tiers that have vacancy and a real starting price.
     if ((t.vacant?.count ?? 0) <= 0) continue;
     const startingPrice = t.sell_rate ?? t.units?.min_price ?? 0;
