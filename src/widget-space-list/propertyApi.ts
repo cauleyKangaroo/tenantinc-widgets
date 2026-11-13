@@ -119,25 +119,61 @@ export interface PropertyExtras {
   amenities: { name: string; label: string; image: string }[];
 }
 
-// Known amenity slugs → display labels; unknown slugs fall back to title-case.
+/*
+ * Known amenity slugs → display labels; unknown slugs fall back to title-case.
+ *
+ * THIS TABLE IS THE ONLY SOURCE OF THE LABELS. The API sends a property
+ * amenity as `{name: <slug>, image}` and nothing else — checked live on both
+ * v1 and v2 `/properties?amenities=true`, 2026-11-13, on both companies — so
+ * the display name Hummingbird's admin shows ("Roll up Door") never reaches
+ * the widget. The fallback title-case can only split on underscores, and most
+ * slugs are CONCATENATED words ("rollupdoors" → "Rollupdoors" on a tile, the
+ * bug the client reported on Stop N Stor), so every slug seen in live data is
+ * listed here even where the fallback would cope. A slug the platform adds
+ * later falls back rather than hiding the tile.
+ */
 const AMENITY_LABELS: Record<string, string> = {
-  secure: 'Secure Facility',
   ada: 'ADA Accessible',
+  air_and_water: 'Air & Water',
+  alarmedunits: 'Alarmed Units',
+  boxes: 'Boxes & Moving Supplies',
+  brightledlights: 'Bright LED Lights',
   business: 'Business Center',
+  carts: 'Moving Carts',
+  climate: 'Climate Controlled',
+  climatecontrolled: 'Climate Controlled',
+  commercialstorage: 'Commercial Storage',
   contactless_rentals: 'Contactless Rentals',
+  driveup: 'Drive-Up Access',
+  driveupclimate: 'Drive-Up Climate Controlled',
   dumpstation: 'Dump Station',
   elevator: 'Elevator Access',
   enclosedrvstorage: 'Enclosed RV Storage',
+  fenced: 'Fenced & Gated',
   firealarms: 'Fire Alarms',
   firesprinklers: 'Fire Sprinklers',
-  fenced: 'Fenced & Gated',
   interiorstorage: 'Interior Storage',
-  solarpanels: 'Solar Panels',
-  climate: 'Climate Controlled',
-  climatecontrolled: 'Climate Controlled',
-  driveup: 'Drive-Up Access',
-  video: 'Video Surveillance',
+  online: 'Online Bill Pay',
+  onlinerental: 'Online Rentals',
+  onsitemanagement: 'On-Site Management',
+  onetwentyvoutlet: '120V Outlet',
   parking: 'Vehicle Parking',
+  rentalbyphone: 'Rental by Phone',
+  rollupdoor: 'Roll Up Door',
+  rollupdoors: 'Roll Up Doors',
+  secure: 'Secure Facility',
+  solarpanels: 'Solar Panels',
+  tall_drive_ups: 'Tall Drive-Ups',
+  talldoors: 'Tall Doors',
+  temperaturecontrol: 'Temperature Control',
+  tenantprotectionplan: 'Tenant Protection Plan',
+  thirtyamppower: '30 Amp Power',
+  twentyfour: '24-Hour Access',
+  unitlights: 'Unit Lights',
+  vehicle: 'Vehicle Storage',
+  video: 'Video Surveillance',
+  washrack: 'Wash Rack',
+  wine: 'Wine Storage',
 };
 
 function amenityLabel(slug: string): string {
