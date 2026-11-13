@@ -212,32 +212,80 @@ async function verifyCodeOffline(code: string, bypassCode: string): Promise<bool
 // Account picker (Figma 12667:34621)
 // ---------------------------------------------------------------------------
 
+/** One property line on a picker row: "Storage Outlet Fullerton | Space #23, #5674". */
+interface PickerRental {
+  property: string;
+  /** Unit numbers, already #-prefixed where known; "(Reservation)" is not marked — the mock lists all rentals alike. */
+  spaces: string[];
+}
+
 /** One row of the picker, from either source below. */
 interface PickerAccount {
   id: string;
   name: string;
-  /** Rented spaces — "(1 Space)". The API's contact rows do not carry it yet. */
+  /** Rented spaces across every property — "(2 Spaces)". */
   spaces?: number;
   /** The line under the name: "email, (949) 748-9365" — either part may be absent. */
   email?: string;
   phone?: string;
+  /** Where it rents, one line per property (MRECOM-223). Empty on old proxies. */
+  rentals: PickerRental[];
 }
 
 /**
- * HARNESS/EDITOR ONLY — the picker frame's own sample rows, shown after the
- * offline bypass when `demoAccountCount` > 1 so the screen can be walked
- * without an API. A live page shows the server's `select_contact` rows.
+ * HARNESS/EDITOR ONLY — the picker mock's own sample rows (the two same-named
+ * Jane Does the design was drawn around), shown after the offline bypass when
+ * `demoAccountCount` > 1 so the screen can be walked without an API. A live
+ * page shows the server's `select_contact` rows.
  */
 const DEMO_ACCOUNTS = [
-  { id: 'demo-1', name: 'Jane Doe', spaces: 1, phone: '(949) 748-9365' },
-  { id: 'demo-2', name: 'Janey Do', spaces: 2, phone: '(949) 938-7777' },
+  {
+    id: 'demo-1', name: 'Jane Doe', spaces: 2, phone: '(949) 748-9365',
+    rentals: [{ property: 'Storage Outlet Fullerton', spaces: ['#23', '#5674'] }],
+  },
+  {
+    id: 'demo-2', name: 'Jane Doe', spaces: 9, phone: '(949) 748-9365',
+    rentals: [
+      { property: 'Storage Outlet Fullerton', spaces: ['#23', '#5674'] },
+      { property: 'Storage Outlet Bellflower', spaces: ['#8', '#873'] },
+      { property: 'Storage Outlet Huntington Beach', spaces: ['#56', '#873', '#34', '#567', '#987'] },
+    ],
+  },
 ];
 
-/** The verify call's contacts → picker rows. `email` is what the reader typed, if anything. */
-function contactsToAccounts(contacts: AccountContact[], email: string): PickerAccount[] {
+/** "9497489365" (or "1" + it) → "(949) 748-9365"; anything else as given. */
+function formatContactPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+  if (digits.length !== 10) return raw;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+/**
+ * The verify call's contacts → picker rows.
+ *
+ * The contact's OWN email and phone first (the proxy sends them in full since
+ * MRECOM-223 — they are what tells two same-named contacts apart); what the
+ * reader typed, or the legacy masked phone, only when a contact carries none.
+ * A property with no readable unit numbers still gets its line — where the
+ * contact rents is the information, the numbers are detail.
+ */
+function contactsToAccounts(contacts: AccountContact[], typedEmail: string): PickerAccount[] {
   return contacts.map((c, i) => {
     const name = [c.first, c.last].filter(Boolean).join(' ') || c.name || `Account ${i + 1}`;
-    return { id: c.id || String(i), name, email: email || undefined, phone: c.maskedPhone };
+    const rentals: PickerRental[] = (c.properties ?? [])
+      .filter((p) => p.name || p.units.length)
+      .map((p) => ({
+        property: p.name ?? 'Storage facility',
+        spaces: p.units.map((u) => (u.number ? `#${u.number}` : '')).filter(Boolean),
+      }));
+    return {
+      id: c.id || String(i),
+      name,
+      spaces: c.unitCount,
+      email: c.email || typedEmail || undefined,
+      phone: c.phone ? formatContactPhone(c.phone) : c.maskedPhone,
+      rentals,
+    };
   });
 }
 
@@ -1030,11 +1078,8 @@ export function AccountLogin({
     const accounts: PickerAccount[] = live
       ? contactsToAccounts(pendingContacts, email)
       : DEMO_ACCOUNTS.slice(0, Math.max(2, demoAccountCount)).map((a) => ({
-        id: a.id,
-        name: a.name,
-        spaces: a.spaces,
-        email: email || 'john.doe@tenantinc.com',
-        phone: a.phone,
+        ...a,
+        email: email || 'smartysnoozers@gmail.com',
       }));
     const linkedTo = email || formatDestination(identifier, 'phone');
 
@@ -1072,6 +1117,28 @@ export function AccountLogin({
                       <span className="al-account-detail">
                         {a.email}{a.email && a.phone && ', '}
                         {a.phone && <span className="al-account-phone">{a.phone}</span>}
+                      </span>
+                    )}
+                    {/* Where this contact rents — the block that tells two
+                        same-named accounts apart (MRECOM-223). One line per
+                        property: "Storage Outlet Fullerton | Space #23, #5674".
+                        Absent entirely on a proxy that predates the field, so
+                        the row collapses to exactly what it showed before. */}
+                    {a.rentals.length > 0 && (
+                      <span className="al-account-rentals">
+                        {a.rentals.map((r, ri) => (
+                          <span className="al-account-rental" key={`${r.property}-${ri}`}>
+                            <span className="al-account-rental-prop">{r.property}</span>
+                            {r.spaces.length > 0 && (
+                              <>
+                                <span className="al-account-rental-sep" aria-hidden="true">|</span>
+                                <span className="al-account-rental-units">
+                                  Space {r.spaces.join(', ')}
+                                </span>
+                              </>
+                            )}
+                          </span>
+                        ))}
                       </span>
                     )}
                   </span>
