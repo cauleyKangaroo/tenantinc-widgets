@@ -69,6 +69,7 @@ import { resolveCompanyIdFromSources } from '@shared/companySource';
 import { fetchGatewayInfo } from '@shared/paymentGateway';
 import type { AccountDocument, EditForm } from './data';
 import { PAYMENT_ACTIVITY, PROMO_AUTOPAY, PROPERTIES, SPACES, USER } from './data';
+import { recalledSpaceCount, rememberSpaceCount, skeletonRecord } from './skeletonRecord';
 import { AccountInfoIcon, CreditCardIcon, LogoutIcon, SubmenuIcon } from './icons';
 import { AccountSheet } from './AccountSheet';
 
@@ -291,24 +292,37 @@ export function MyAccount({
      that one belongs to the Edit panel, and a failed download surfacing
      later as a failed save was the confusion. */
   const [documentError, setDocumentError] = useState('');
+  /*
+   * The record could not be loaded (not a sign-out — a network or upstream
+   * failure). The page then says so, with a retry, instead of falling back
+   * to the sample: everything on it — units, balances, contacts — comes from
+   * the record, so without one there is nothing true to show.
+   */
+  const [recordFailed, setRecordFailed] = useState(false);
+  const [recordAttempt, setRecordAttempt] = useState(0);
 
   useEffect(() => {
     if (!gated || authed !== true || !session) return undefined;
     let cancelled = false;
+    setRecordFailed(false);
     void fetchContact(api, session.token).then((r) => {
       if (cancelled) return;
-      if (r.ok) { setRecord(r.data); return; }
+      if (r.ok) {
+        setRecord(r.data);
+        // For the next visit's skeleton (see skeletonRecord.ts).
+        rememberSpaceCount(session.contactId, Array.isArray(r.data.leases) ? r.data.leases.length : 0);
+        return;
+      }
       if (r.unauthorized) {
         clearSession();
         window.location.href = loginUrl;
         return;
       }
-      // The page still works without it — only the Edit panel loses its real
-      // starting values, so this is a warning rather than a failure state.
       console.warn('[#19 my-account] contact load failed:', r.detail ?? r.message);
+      setRecordFailed(true);
     });
     return () => { cancelled = true; };
-  }, [gated, authed, session, api, loginUrl]);
+  }, [gated, authed, session, api, loginUrl, recordAttempt]);
 
   /*
    * Memoised per record so EditPanel's re-seed effect fires when the record
@@ -323,9 +337,23 @@ export function MyAccount({
    * The alternate and emergency contacts are per lease, so they live on each
    * mapped space (spacesFrom) rather than here.
    */
+  /*
+   * What the page is DRAWN from: the record once it lands, and while a
+   * signed-in reader's record is still loading, a placeholder in the same
+   * shape (skeletonRecord.ts). The placeholder only ever sits under the
+   * skeleton, which hides every word of it, so the grey boxes take the shape
+   * of a real account rather than the much fuller design sample. Everything
+   * that ACTS on the account (editing, payments, documents) keeps reading
+   * `record`, so nothing can act on the placeholder.
+   */
+  const recordLoading = gated && !record && !recordFailed;
+  const shapeRecord = useMemo(
+    () => record ?? (recordLoading ? skeletonRecord(recalledSpaceCount(session?.contactId)) : null),
+    [record, recordLoading, session?.contactId],
+  );
   const realContact = useMemo(
-    () => (record ? primaryContactFrom(record) : undefined),
-    [record],
+    () => (shapeRecord ? primaryContactFrom(shapeRecord) : undefined),
+    [shapeRecord],
   );
   /*
    * THE SIGNED-IN CONTACT'S OWN UNITS.
@@ -339,19 +367,23 @@ export function MyAccount({
    * Duda editor — so the layout can still be worked on without a session.
    */
   const spaces = useMemo(() => {
-    if (!record) return SPACES;
+    // The sample is for the harness and the editor only (not gated). A
+    // signed-in reader is drawn from shapeRecord — the placeholder under the
+    // skeleton while loading, then their own record; a failed load has
+    // neither, so it gets nothing, and the retry.
+    if (!shapeRecord) return gated ? [] : SPACES;
     // SPACES[0] carries the frame's own contact; reuse it rather than export a
     // second copy of the same sample from data.ts.
     const fallback = SPACES[0]?.primaryContact ?? { name: '' };
     // siteId is Duda's own (data.siteId) and is what builds the site's
     // Media Manager artwork URLs for each unit — the same as the space cards.
-    const mapped = spacesFrom(record, realContact ?? fallback, { siteId });
+    const mapped = spacesFrom(shapeRecord, realContact ?? fallback, { siteId });
     /*
      * A contact with no leases gets an EMPTY list, not the sample. Someone who
      * has closed their last unit must not be shown a stranger's storage.
      */
     return mapped;
-  }, [record, realContact, siteId]);
+  }, [shapeRecord, realContact, siteId, gated]);
 
   /*
    * The property's name, address and phone for each sidebar card, from the
@@ -382,7 +414,7 @@ export function MyAccount({
   }, [record]);
 
 
-  const activityRows = useMemo(() => (record ? activityFrom(record) : []), [record]);
+  const activityRows = useMemo(() => (shapeRecord ? activityFrom(shapeRecord) : []), [shapeRecord]);
 
   /*
    * Coverage handlers for Make a Payment — only with a real session. Each
@@ -479,8 +511,8 @@ export function MyAccount({
 
 
   const properties = useMemo(
-    () => (record ? propertiesFrom(record, propertyContacts) : PROPERTIES),
-    [record, propertyContacts],
+    () => (shapeRecord ? propertiesFrom(shapeRecord, propertyContacts) : gated ? [] : PROPERTIES),
+    [shapeRecord, propertyContacts, gated],
   );
 
   /*
@@ -790,8 +822,13 @@ export function MyAccount({
    *
    * Painting the account first would flash the sample content — someone else's
    * name and balances — at a visitor who is about to be redirected to /login.
+   *
+   * And it stays busy until the account RECORD has landed, not only the token
+   * check: between the two the page used to show the sample units, balances
+   * and payments as if they were the reader's own, then swap them out. A
+   * failed load ends the skeleton too, and shows the retry below instead.
    */
-  const busy = authed === null;
+  const busy = authed === null || recordLoading;
 
   // Phone account menu (icon beside the greeting → bottom sheet). Its rows are
   // the page's own actions; see AccountSheet.
@@ -957,7 +994,18 @@ export function MyAccount({
               broken page: every panel below needs a space, so without one
               they are not mounted and this says why. "+ Add a Space" in the
               sidebar is the way forward. */}
-          {!space && (
+          {!space && recordFailed && (
+            <section className="ma-account" role="alert">
+              <div className="ma-account__body">
+                <p role="heading" aria-level={2} className="ma-account__title">We couldn’t load your account</p>
+                <p className="ma-account__label">Please check your connection and try again.</p>
+                <button type="button" className="ma-paynow ma-account__retry" onClick={() => setRecordAttempt((n) => n + 1)}>
+                  Try again
+                </button>
+              </div>
+            </section>
+          )}
+          {!space && !recordFailed && (
             <section className="ma-account" role="status">
               <div className="ma-account__body">
                 <p role="heading" aria-level={2} className="ma-account__title">No active rentals</p>
@@ -988,8 +1036,8 @@ export function MyAccount({
               // null, not undefined, once a record is in: a lease with no
               // secondary contact hides the block rather than showing the
               // sample's Jerry Boo.
-              alternate={record ? space.alternateContact ?? null : undefined}
-              emergency={record ? space.emergencyContact ?? null : undefined}
+              alternate={shapeRecord ? space.alternateContact ?? null : undefined}
+              emergency={shapeRecord ? space.emergencyContact ?? null : undefined}
               onOpenDocument={gated ? openDocument : undefined}
               busyDocument={busyDocument}
             />
@@ -1036,7 +1084,7 @@ export function MyAccount({
                  sample rows stay for the harness and the editor only; a
                  signed-in customer must never see payments that were not
                  theirs. */
-              rows={record ? activityRows : PAYMENT_ACTIVITY}
+              rows={shapeRecord ? activityRows : gated ? [] : PAYMENT_ACTIVITY}
               open={activityOpen}
               onToggle={() => setActivityOpen((v) => !v)}
             />

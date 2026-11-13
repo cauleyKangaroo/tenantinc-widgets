@@ -1492,6 +1492,9 @@
 }
 .ma-paynow:hover { background: color-mix(in srgb, var(--hb-cta) 88%, #000); }
 .ma-paynow:active { background: color-mix(in srgb, var(--hb-cta) 78%, #000); }
+/* The account-load retry: the same button, clear of the line above it and
+   only as wide as its label. */
+.ma-account__retry { margin-top: 16px; width: auto; padding-inline: 24px; }
 .ma-paynow:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--hb-cta) 35%, transparent);
