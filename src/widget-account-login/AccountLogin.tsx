@@ -271,17 +271,50 @@ function OtpInput({ value, onChange, invalid, onComplete }: OtpInputProps) {
     return next;
   };
 
+  /**
+   * Write a RUN of digits starting at `start` — one keystroke, a paste, or the
+   * phone's own code suggestion. Focus follows the run; a complete code
+   * submits itself, exactly as typing the sixth digit does.
+   */
+  const fillFrom = (start: number, digits: string) => {
+    const chars = value.padEnd(OTP_LENGTH, ' ').split('');
+    for (let i = 0; i < digits.length && start + i < OTP_LENGTH; i++) chars[start + i] = digits[i];
+    const next = chars.join('').replace(/ +$/, '');
+    onChange(next);
+    focusBox(Math.min(start + digits.length, OTP_LENGTH - 1));
+    if (next.replace(/\s/g, '').length === OTP_LENGTH) onComplete(next);
+  };
+
   const handleChange = (index: number, raw: string) => {
-    // Take the LAST digit typed: with a box already filled, the browser hands us
-    // "45" rather than replacing, and the reader means the new character.
-    const digit = raw.replace(/\D/g, '').slice(-1);
-    if (!digit) {
+    const digits = raw.replace(/\D/g, '');
+    if (!digits) {
       setDigit(index, '');
       return;
     }
-    const next = setDigit(index, digit);
-    if (index < OTP_LENGTH - 1) focusBox(index + 1);
-    if (next.replace(/\s/g, '').length === OTP_LENGTH) onComplete(next);
+    // A keystroke in a box already holding a digit arrives APPENDED ("4" →
+    // "45") rather than replacing, and the reader means the new character.
+    // Matched on the first digit being the box's own, so a real two-digit
+    // suggestion ("12" into a box showing "4") still spreads below.
+    const held = value[index]?.trim() ?? '';
+    const single = digits.length === 1
+      ? digits
+      : digits.length === 2 && held && digits[0] === held ? digits[1] : '';
+    if (single) {
+      const next = setDigit(index, single);
+      if (index < OTP_LENGTH - 1) focusBox(index + 1);
+      if (next.replace(/\s/g, '').length === OTP_LENGTH) onComplete(next);
+      return;
+    }
+    /*
+     * SEVERAL digits in one change is the phone keyboard's code suggestion —
+     * iOS taps insert the whole SMS code into the focused box, and no paste
+     * event fires — so it spreads across the boxes like a paste. A whole
+     * code starts from box 0 wherever the caret happens to sit; a shorter
+     * run continues from here. Taking the last digit (the old behaviour)
+     * threw five-sixths of the suggestion away and left a code that could
+     * never be completed.
+     */
+    fillFrom(digits.length >= OTP_LENGTH ? 0 : index, digits.slice(0, OTP_LENGTH));
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -305,13 +338,7 @@ function OtpInput({ value, onChange, invalid, onComplete }: OtpInputProps) {
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '');
     if (!pasted) return;
     e.preventDefault();
-    const chars = value.padEnd(OTP_LENGTH, ' ').split('');
-    for (let i = 0; i < pasted.length && index + i < OTP_LENGTH; i++) chars[index + i] = pasted[i];
-    const next = chars.join('').replace(/ +$/, '');
-    onChange(next);
-    const landed = Math.min(index + pasted.length, OTP_LENGTH - 1);
-    focusBox(landed);
-    if (next.replace(/\s/g, '').length === OTP_LENGTH) onComplete(next);
+    fillFrom(pasted.length >= OTP_LENGTH ? 0 : index, pasted.slice(0, OTP_LENGTH));
   };
 
   return (
@@ -323,7 +350,11 @@ function OtpInput({ value, onChange, invalid, onComplete }: OtpInputProps) {
           className="al-otp-box"
           type="text"
           inputMode="numeric"
-          autoComplete={i === 0 ? 'one-time-code' : 'off'}
+          /* On every box, not just the first: the phone offers its SMS-code
+             suggestion for the FOCUSED field, and a reader who tapped box 3
+             deserves the same shortcut. The insert lands as one multi-digit
+             change, which handleChange spreads from box 0. */
+          autoComplete="one-time-code"
           maxLength={2}
           value={value[i]?.trim() ?? ''}
           onChange={(e) => handleChange(i, e.target.value)}
@@ -809,6 +840,52 @@ export function AccountLogin({
       setChecking(false);
     }
   }, [checking, bypassCode, successUrl, live, api, identifier, identifierPayload, finish, demoAccountCount, keepLoggedIn]);
+
+  /*
+   * WebOTP — the texted code offered by the PHONE ITSELF (client request
+   * 2026-11-13): Android Chrome shows the arriving SMS code in a bottom sheet
+   * and one tap fills and submits it; iOS needs no call here — its keyboard
+   * suggestion comes from the boxes' autocomplete="one-time-code", and
+   * handleChange now spreads that insert.
+   *
+   * Armed only on the verify step AND only when the code went to a PHONE:
+   * SMS is the mobile channel, so this never fires for an emailed code, and
+   * the API simply does not exist where there is no SMS to read — that is
+   * the "mobile only" in the request, enforced by the platform rather than
+   * by sniffing. Aborted the moment the step or channel changes, so a code
+   * for an abandoned login can never land in a later one.
+   *
+   * `submitCode` is read through a ref: it re-makes on every state change,
+   * and depending on it here would abort and re-issue the browser's SMS
+   * listener each time — racing the very SMS it is waiting for.
+   *
+   * NOTE for the backend: Android only surfaces an SMS whose LAST line is
+   * `@<login page's domain> #<code>`. Without that suffix this resolves
+   * nothing and the reader types the code as before — nothing breaks.
+   */
+  const submitCodeRef = useRef(submitCode);
+  useEffect(() => { submitCodeRef.current = submitCode; }, [submitCode]);
+  useEffect(() => {
+    if (step !== 'verify' || kind !== 'phone' || !('OTPCredential' in window)) return undefined;
+    interface OtpCredentials {
+      get(options: { otp: { transport: string[] }; signal: AbortSignal }): Promise<{ code?: string } | null>;
+    }
+    const credentials = navigator.credentials as unknown as OtpCredentials | undefined;
+    if (!credentials?.get) return undefined;
+    const ac = new AbortController();
+    credentials.get({ otp: { transport: ['sms'] }, signal: ac.signal })
+      .then((cred) => {
+        const digits = (cred?.code ?? '').replace(/\D/g, '').slice(0, OTP_LENGTH);
+        if (!digits) return;
+        setCode(digits);
+        setCodeError('');
+        // A full code submits itself, exactly as the sixth keystroke does; a
+        // short one just fills what arrived and leaves the reader to finish.
+        if (digits.length === OTP_LENGTH) void submitCodeRef.current(digits);
+      })
+      .catch(() => { /* dismissed, aborted, or no readable SMS — manual entry continues */ });
+    return () => ac.abort();
+  }, [step, kind]);
 
   /*
    * A row of the picker was chosen (step 1c).
