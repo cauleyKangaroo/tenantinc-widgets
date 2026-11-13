@@ -459,15 +459,20 @@
 
 /* ── Phone-first mobile field's channel switch ─────────────────────────────────
    "Login with Email" under the identifier field (mixed mode, <768px only — the
-   row only renders there, so no media query). Pulled up against the field: it
-   belongs to it, not to the error slot and button that follow. */
+   row only renders there, so no media query). Flush against the field's bottom
+   right corner (client request): the full 24px column gap is taken back, so the
+   link reads as part of the field rather than of the error slot and button
+   that follow. */
 .al-switch {
-  margin-top: -14px; /* 24px column gap → 10px under the field */
-  text-align: center;
+  margin-top: -24px; /* the whole column gap → 0px under the field */
+  text-align: right;
 }
 
 .al-switch-link {
   font-size: 13px;
+  /* The tap target: padding instead of margin keeps the link visually flush
+     while the clickable box stays a comfortable height on a phone. */
+  padding: 6px 2px;
 }
 
 /* ── Account picker (Figma 12667:34621) ────────────────────────────────────── */
