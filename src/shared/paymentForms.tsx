@@ -1393,7 +1393,12 @@ export function CardForm({ total, onPay, busy, gpPublicKey, gatewayPending, zipO
           Only after a pay attempt — ringing a field the shopper has not
           reached yet would be scolding them for not having got there. */}
       <FormField
-        label="Name on Card" required value={name} onChange={setName} autoComplete="cc-name"
+        label="Name on Card" required value={name}
+        // A cardholder name is letters only, plus the space, hyphen, apostrophe
+        // and period real names use (Mary-Jane O'Neil Jr.). Digits and other
+        // symbols are dropped as typed or pasted.
+        onChange={(v) => setName(v.replace(/[^\p{L}\p{M}\s'.-]/gu, ''))}
+        autoComplete="cc-name"
         state={ok(filled(name))}
         error={payAttempted && !filled(name) ? 'Enter the name on the card' : undefined}
       />
